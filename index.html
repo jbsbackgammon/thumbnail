@@ -257,7 +257,7 @@
   <script>
     // GitHub Pages / browser cache対策。リリースごとにAPP_BUILDを更新する。
     (() => {
-      const APP_BUILD = '12';
+      const APP_BUILD = '13';
       const url = new URL(window.location.href);
       if (url.searchParams.get('v') !== APP_BUILD) {
         url.searchParams.set('v', APP_BUILD);
@@ -265,12 +265,12 @@
       }
     })();
   </script>
-  <script src="players.js?v=12"></script>
+  <script src="players.js?v=13"></script>
   <script>
     (() => {
       'use strict';
 
-      const APP_BUILD = '12';
+      const APP_BUILD = '13';
       console.info(`[JBS Thumbnail] build ${APP_BUILD}`);
 
       const SERIES = {
@@ -523,7 +523,7 @@
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
           ctx.font = `700 34px ${FONT_JP}`;
-          ctx.fillText('PHOTO', x + size/2, y + size/2);
+          
         }
         const edgeX = side === 'left' ? x + size + 10 : x - 10;
         ctx.fillStyle = alpha('#ffffff', 0.94);
@@ -572,8 +572,8 @@
           ctx.stroke();
           ctx.restore();
 
-          drawImpactTextFit(editionText, 960, titleYBase, 860, 84, 54, accent, 'transparent', 'rgba(255,255,255,0)', 0, 0, 'center', FONT_JP, 900, 0);
-          drawImpactTextFit(series, 960, 302, 960, 222, 112, accent, alpha('#ffffff', 0.80), 'rgba(0,0,0,0.18)', 24, 8, 'center', FONT_JP, 900, 5);
+          drawImpactTextFit(editionText, 960, titleYBase, 860, 100, 54, accent, 'transparent', 'rgba(255,255,255,0)', 0, 0, 'center', FONT_JP, 900, 0);
+          drawImpactTextFit(series, 960, 302, 960, 250, 112, accent, alpha('#ffffff', 0.80), 'rgba(0,0,0,0.18)', 24, 8, 'center', FONT_JP, 900, 5);
 
           ctx.save();
           ctx.strokeStyle = accent;
@@ -585,7 +585,7 @@
           ctx.stroke();
           ctx.restore();
 
-          drawImpactTextFit(stage, 960, 556, 780, 162, 84, mix(accent, -0.08), 'transparent', 'rgba(255,255,255,0.22)', 14, 0, 'center', FONT_JP, 900, 0);
+          drawImpactTextFit(stage, 960, 556, 780, 150, 84, mix(accent, -0.08), 'transparent', 'rgba(255,255,255,0.22)', 14, 0, 'center', FONT_JP, 900, 0);
         } else {
           const panelGrad = ctx.createLinearGradient(0, 90, 0, 690);
           panelGrad.addColorStop(0, 'rgba(255,255,255,0.10)');
@@ -613,8 +613,8 @@
           ctx.stroke();
           ctx.restore();
 
-          drawImpactTextFit(editionText, 960, titleYBase, 820, 104, 64, titleColor, accent, shadow, 30, 10, 'center', FONT_JP, 900, 6);
-          drawImpactTextFit(series, 960, 324, 840, 274, 146, titleColor, accent, shadow, 44, 14, 'center', FONT_JP, 900, 10);
+          drawImpactTextFit(editionText, 960, titleYBase, 820, 100, 54, titleColor, accent, shadow, 30, 10, 'center', FONT_JP, 900, 6);
+          drawImpactTextFit(series, 960, 324, 840, 250, 112, titleColor, accent, shadow, 44, 14, 'center', FONT_JP, 900, 10);
 
           ctx.save();
           ctx.strokeStyle = alpha('#ffffff', 0.96);
@@ -626,7 +626,7 @@
           ctx.stroke();
           ctx.restore();
 
-          drawImpactTextFit(stage, 960, 576, 820, 166, 86, titleColor, accent, shadow, 32, 10, 'center', FONT_JP, 900, 8);
+          drawImpactTextFit(stage, 960, 576, 820, 150, 84, titleColor, accent, shadow, 32, 10, 'center', FONT_JP, 900, 8);
         }
       }
       function drawNameBands(accent, isPhotoMode) {
@@ -738,7 +738,7 @@
         ctx.lineWidth = 8;
         ctx.strokeStyle = accent;
         ctx.stroke();
-        ctx.font = `900 58px ${FONT_LATIN}`;
+        ctx.font = `900 64px ${FONT_LATIN}`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillStyle = accent;
@@ -764,7 +764,7 @@
           leftX + leftW / 2,
           romanY + romanH / 2 + 1,
           leftW - 24,
-          58,
+          64,
           28,
           '#ffffff',
           'transparent',
@@ -787,7 +787,7 @@
           rightX + rightW / 2,
           romanY + romanH / 2 + 1,
           rightW - 24,
-          58,
+          64,
           28,
           '#ffffff',
           'transparent',
@@ -810,7 +810,7 @@
             960,
             footerY + (1080 - footerY) / 2,
             1760,
-            48,
+            80,
             28,
             accent,
             'transparent',
@@ -829,7 +829,7 @@
             960,
             footerY + (1080 - footerY) / 2,
             1740,
-            42,
+            80,
             26,
             alpha(accent, .82),
             'center',
@@ -864,11 +864,7 @@
             drawBackgroundPattern(accent);
             ctx.fillStyle = 'rgba(0,0,0,0.18)';
             ctx.fillRect(0, 0, 1920, 1080);
-            ctx.fillStyle = '#ffffff';
-            ctx.font = `800 54px ${FONT_JP}`;
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText('全面背景写真を選択してください', 960, 710);
+
           }
         }
 
