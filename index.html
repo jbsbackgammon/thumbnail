@@ -151,98 +151,98 @@
 <body>
   <div class="app">
     <main class="preview-wrap">
-      <button class="preview-download" id="downloadBtn" type="button">PNG菫晏ｭ・/button>
+      <button class="preview-download" id="downloadBtn" type="button">PNG保存</button>
       <div class="canvas-shell">
-        <canvas id="canvas" width="1920" height="1080" aria-label="繧ｵ繝繝阪う繝ｫ繝励Ξ繝薙Η繝ｼ"></canvas>
+        <canvas id="canvas" width="1920" height="1080" aria-label="サムネイルプレビュー"></canvas>
       </div>
     </main>
 
     <aside class="controls">
       <section class="form-row event-row">
         <div class="field">
-          <label for="sponsor">蜀蜷・/label>
+          <label for="sponsor">冠名</label>
           <input id="sponsor" type="text" value="" />
         </div>
         <div class="field">
-          <label for="edition">蝗樊ｬ｡遲・/label>
-          <input id="edition" type="text" value="JBS 隨ｬ32譛・ />
+          <label for="edition">回次等</label>
+          <input id="edition" type="text" value="JBS 第32期" />
         </div>
         <div class="field">
-          <label for="series">螟ｧ莨壼錐</label>
+          <label for="series">大会名</label>
           <div class="combo-input">
-            <input id="series" list="seriesList" value="逶､閨匁姶" placeholder="蛟呵｣懊°繧蛾∈謚・ />
-            <button type="button" data-picker="series" aria-label="螟ｧ莨壼錐縺ｮ蛟呵｣懊ｒ陦ｨ遉ｺ"></button>
+            <input id="series" list="seriesList" value="盤聖戦" placeholder="候補から選択" />
+            <button type="button" data-picker="series" aria-label="大会名の候補を表示"></button>
           </div>
           <datalist id="seriesList"></datalist>
         </div>
         <div class="field">
-          <label for="seriesSubtitle">螟ｧ莨壼錐・亥ｰ擾ｼ・/label>
+          <label for="seriesSubtitle">大会名（小）</label>
           <input id="seriesSubtitle" type="text" value="" />
         </div>
         <div class="field">
-          <label for="stage">隧ｦ蜷亥錐</label>
+          <label for="stage">試合名</label>
           <div class="combo-input">
-            <input id="stage" list="stageList" value="豎ｺ蜍・ placeholder="蛟呵｣懊°繧蛾∈謚・ />
-            <button type="button" data-picker="stage" aria-label="隧ｦ蜷亥錐縺ｮ蛟呵｣懊ｒ陦ｨ遉ｺ"></button>
+            <input id="stage" list="stageList" value="決勝" placeholder="候補から選択" />
+            <button type="button" data-picker="stage" aria-label="試合名の候補を表示"></button>
           </div>
           <datalist id="stageList">
-            <option value="豎ｺ蜍・></option>
-            <option value="貅匁ｱｺ蜍・></option>
-            <option value="貅悶・ｱｺ蜍・></option>
-            <option value="・大屓謌ｦ"></option>
-            <option value="・貞屓謌ｦ"></option>
-            <option value="・灘屓謌ｦ"></option>
-            <option value="譛ｬ謌ｦ1蝗樊姶"></option>
-            <option value="譛ｬ謌ｦ2蝗樊姶"></option>
-            <option value="譛ｬ謌ｦ3蝗樊姶"></option>
+            <option value="決勝"></option>
+            <option value="準決勝"></option>
+            <option value="準々決勝"></option>
+            <option value="１回戦"></option>
+            <option value="２回戦"></option>
+            <option value="３回戦"></option>
+            <option value="本戦1回戦"></option>
+            <option value="本戦2回戦"></option>
+            <option value="本戦3回戦"></option>
           </datalist>
         </div>
         <div class="field">
-          <label for="stagePrefix">隧ｦ蜷亥錐・亥ｰ擾ｼ・/label>
+          <label for="stagePrefix">試合名（小）</label>
           <input id="stagePrefix" type="text" value="" />
         </div>
         <div class="field">
-          <label for="supplement">隧ｦ蜷郁｣懆ｶｳ</label>
+          <label for="supplement">試合補足</label>
           <input id="supplement" value="" />
         </div>
       </section>
 
 <div class="form-row">
           <div class="field">
-            <label for="leftPlayer">蟾ｦ驕ｸ謇九・繧ｹ繧ｿ</label>
+            <label for="leftPlayer">左選手マスタ</label>
             <select id="leftPlayer"></select>
           </div>
           <div class="field">
-            <label for="leftPhotoOverride">蜀咏悄螟画峩</label>
+            <label for="leftPhotoOverride">写真変更</label>
             <input class="native-file" id="leftPhotoOverride" type="file" accept="image/*" />
-            <div class="file-picker"><label class="file-button" for="leftPhotoOverride">驕ｸ謚・/label><span class="file-status" id="leftPhotoStatus">譛ｪ驕ｸ謚・/span></div>
+            <div class="file-picker"><label class="file-button" for="leftPhotoOverride">選択</label><span class="file-status" id="leftPhotoStatus">未選択</span></div>
           </div>
           <div class="field">
-            <label for="leftName">譌･譛ｬ隱槫錐</label>
+            <label for="leftName">日本語名</label>
             <input id="leftName" />
           </div>
           <div class="field">
-            <label for="leftRoman">繝ｭ繝ｼ繝槫ｭ・/label>
+            <label for="leftRoman">ローマ字</label>
             <input id="leftRoman" />
           </div>
         </div>
 
         <div class="form-row">
           <div class="field">
-            <label for="rightPlayer">蜿ｳ驕ｸ謇九・繧ｹ繧ｿ</label>
+            <label for="rightPlayer">右選手マスタ</label>
             <select id="rightPlayer"></select>
           </div>
           <div class="field">
-            <label for="rightPhotoOverride">蜀咏悄螟画峩</label>
+            <label for="rightPhotoOverride">写真変更</label>
             <input class="native-file" id="rightPhotoOverride" type="file" accept="image/*" />
-            <div class="file-picker"><label class="file-button" for="rightPhotoOverride">驕ｸ謚・/label><span class="file-status" id="rightPhotoStatus">譛ｪ驕ｸ謚・/span></div>
+            <div class="file-picker"><label class="file-button" for="rightPhotoOverride">選択</label><span class="file-status" id="rightPhotoStatus">未選択</span></div>
           </div>
           <div class="field">
-            <label for="rightName">譌･譛ｬ隱槫錐</label>
+            <label for="rightName">日本語名</label>
             <input id="rightName" />
           </div>
           <div class="field">
-            <label for="rightRoman">繝ｭ繝ｼ繝槫ｭ・/label>
+            <label for="rightRoman">ローマ字</label>
             <input id="rightRoman" />
           </div>
         </div>
@@ -250,49 +250,49 @@
 
       <section class="form-row">
         <div class="field">
-          <label for="bgMode">閭梧勹蜀咏悄</label>
+          <label for="bgMode">背景写真</label>
           <select id="bgMode">
-            <option value="none">縺ｪ縺・/option>
-            <option value="photoPlayers">縺ゅｊ・磯｡泌・逵溯｡ｨ遉ｺ・・/option>
-            <option value="photo">縺ゅｊ・磯｡泌・逵滄撼陦ｨ遉ｺ・・/option>
+            <option value="none">なし</option>
+            <option value="photoPlayers">あり（顔写真表示）</option>
+            <option value="photo">あり（顔写真非表示）</option>
           </select>
         </div>
         <div id="photoControls" class="hidden">
           <div class="field">
-            <label for="bgPhoto">蜀咏悄</label>
+            <label for="bgPhoto">写真</label>
             <input class="native-file" id="bgPhoto" type="file" accept="image/*" />
-            <div class="file-picker"><label class="file-button" for="bgPhoto">驕ｸ謚・/label><span class="file-status" id="bgPhotoStatus">譛ｪ驕ｸ謚・/span></div>
+            <div class="file-picker"><label class="file-button" for="bgPhoto">選択</label><span class="file-status" id="bgPhotoStatus">未選択</span></div>
           </div>
           <div class="row">
             <div class="field">
-              <label for="bgX">蟾ｦ蜿ｳ菴咲ｽｮ</label>
+              <label for="bgX">左右位置</label>
               <input id="bgX" type="range" min="0" max="100" value="50" />
             </div>
             <div class="field">
-              <label for="bgY">荳贋ｸ倶ｽ咲ｽｮ</label>
+              <label for="bgY">上下位置</label>
               <input id="bgY" type="range" min="0" max="100" value="50" />
             </div>
           </div>
           <div class="field">
-            <label for="bgScale">邵ｮ蟆上・諡｡螟ｧ</label>
+            <label for="bgScale">縮小・拡大</label>
             <input id="bgScale" type="range" min="50" max="200" value="100" />
           </div>
           <div class="field">
-            <label for="bgShade">證励＆</label>
+            <label for="bgShade">暗さ</label>
             <input id="bgShade" type="range" min="0" max="70" value="0" />
           </div>
         </div>
       </section>
       <section class="form-row">
         <div class="field">
-          <label for="mainColor">繝｡繧､繝ｳ繧ｫ繝ｩ繝ｼ</label>
+          <label for="mainColor">メインカラー</label>
           <div class="color-value">
             <input id="mainColor" type="color" value="#6b0d2f" />
             <output id="mainColorCode" for="mainColor"></output>
           </div>
         </div>
         <div class="field">
-          <label for="subColor">繧ｵ繝悶き繝ｩ繝ｼ</label>
+          <label for="subColor">サブカラー</label>
           <div class="color-value">
             <input id="subColor" type="color" value="#832e48" />
             <output id="subColorCode" for="subColor"></output>
@@ -303,7 +303,8 @@
   </div>
 
   <script>
-    // GitHub Pages / browser cache蟇ｾ遲悶ゅΜ繝ｪ繝ｼ繧ｹ縺斐→縺ｫAPP_BUILD繧呈峩譁ｰ縺吶ｋ縲・    (() => {
+    // GitHub Pages / browser cache対策。リリースごとにAPP_BUILDを更新する。
+    (() => {
       const APP_BUILD = '64';
       const url = new URL(window.location.href);
       if (url.searchParams.get('v') !== APP_BUILD) {
@@ -321,14 +322,14 @@
       console.info(`[JBS Thumbnail] build ${APP_BUILD}`);
 
       const SERIES = {
-        '譌･譛ｬ驕ｸ謇区ｨｩ': '#3C3C3C',
-        '逶､閨匁姶': '#6B0D2F',
-        '蜷堺ｺｺ謌ｦ': '#6B670D',
-        '邇倶ｽ肴姶': '#0D6B2F',
-        '雉ｽ邇区姶': '#0D236B',
-        '譽玖＊謌ｦ': '#6B230D',
-        '螂ｳ邇区姶': '#6B0D5B',
-        '譁ｰ驪ｭ謌ｦ': '#0D676B'
+        '日本選手権': '#3C3C3C',
+        '盤聖戦': '#6B0D2F',
+        '名人戦': '#6B670D',
+        '王位戦': '#0D6B2F',
+        '賽王戦': '#0D236B',
+        '棋聖戦': '#6B230D',
+        '女王戦': '#6B0D5B',
+        '新鋭戦': '#0D676B'
       };
 
       let players = Array.isArray(window.JBS_PLAYERS) ? [...window.JBS_PLAYERS] : [];
@@ -561,7 +562,7 @@
       }
       function drawCenterTitle(accent, isPhotoMode) {
         const series = $('series').value;
-        const stage = $('stage').value.trim() || '豎ｺ蜍・;
+        const stage = $('stage').value.trim() || '決勝';
         const stagePrefix = $('stagePrefix').value.trim();
         const editionText = $('edition').value;
         // Align the edition with the portrait top; reserve separate bands for each line.
@@ -612,7 +613,7 @@
           ctx.restore();
         }
         function drawStage(fill, stroke, textShadow, blur, offset, strokeWidth) {
-          const isFinal = stage === '豎ｺ蜍・;
+          const isFinal = stage === '決勝';
           if (!stagePrefix) {
             drawImpactTextFit(stage, 960, stageY, titleWidth, isFinal ? 144 : 124, 2, fill, stroke, textShadow, blur, offset, 'center', FONT_JP, 900, strokeWidth);
             if (isFinal) drawFinalMarks(stageY, fill, stroke);
@@ -693,19 +694,22 @@
         }
       }
       function drawNameBands(accent, isPhotoMode) {
-        const leftName = $('leftName').value.trim() || '驕ｸ謇句錐';
-        const rightName = $('rightName').value.trim() || '驕ｸ謇句錐';
+        const leftName = $('leftName').value.trim() || '選手名';
+        const rightName = $('rightName').value.trim() || '選手名';
         const leftRoman = $('leftRoman').value.trim() || 'PLAYER NAME';
         const rightRoman = $('rightRoman').value.trim() || 'PLAYER NAME';
         const supplement = $('supplement').value.trim();
 
-        // 蠖灘・縺ｮ繧ｵ繝繝阪う繝ｫ縺ｫ霑代＞縲御ｸ句ｸｯ縲肴ｧ区・縲・        // 荳頑ｮｵ・壽律譛ｬ隱槫錐繧貞､ｧ縺阪￥縲∽ｸ区ｮｵ・壹Ο繝ｼ繝槫ｭ怜錐縲ゆｸｭ螟ｮ縺ｫVS繧堤峡遶矩・鄂ｮ縲・        const footerH = 100;
+        // 当初のサムネイルに近い「下帯」構成。
+        // 上段：日本語名を大きく、下段：ローマ字名。中央にVSを独立配置。
+        const footerH = 100;
         const jpH = 188;
         const romanH = 88;
         const footerY = 1080 - footerH;
         const bandY = footerY - jpH - romanH;
 
-        // 蜷榊燕蟶ｯ蜈ｨ菴薙・閭碁擇縺ｫ蠖ｱ繧定誠縺ｨ縺励∬レ譎ｯ縺九ｉ豬ｮ縺九○繧九・        ctx.save();
+        // 名前帯全体の背面に影を落とし、背景から浮かせる。
+        ctx.save();
         ctx.shadowColor = 'rgba(0,0,0,0.48)';
         ctx.shadowBlur = 32;
         ctx.shadowOffsetY = 14;
@@ -713,10 +717,12 @@
         ctx.fillRect(0, bandY, 1920, jpH + romanH);
         ctx.restore();
 
-        // 譌･譛ｬ隱槫錐縺ｮ蟶ｯ縺ｯ讓｡讒倥↑縺励・蜊倩牡縲・        ctx.fillStyle = accent;
+        // 日本語名の帯は模様なしの単色。
+        ctx.fillStyle = accent;
         ctx.fillRect(0, bandY, 1920, jpH);
 
-        // 蟾ｦ蜿ｳ縺ｮ蜷榊燕繧貞ｿ・★蛻･鬆伜沺縺ｫ繧ｯ繝ｪ繝・・縺励※荳ｭ螟ｮ縺ｨ蟷ｲ貂峨＆縺帙↑縺・        const vsLeft = 884;
+        // 左右の名前を必ず別領域にクリップして中央と干渉させない
+        const vsLeft = 884;
         const vsRight = 1036;
         const leftX = 0;
         const leftW = vsLeft;
@@ -738,7 +744,8 @@
         drawImpactTextCondensed(rightName, rightX + rightW / 2, jpY, rightW - 28, 132, '#ffffff', alpha('#000000', 0.20), 'rgba(0,0,0,0.30)', 24, 8, FONT_JP, 900, 2);
         ctx.restore();
 
-        // VS・夂區縺・ｧ剃ｸｸ繝励Ξ繝ｼ繝医↓螟ｧ莨夊牡縺ｮ螟ｪ蟄励・        ctx.save();
+        // VS：白い角丸プレートに大会色の太字。
+        ctx.save();
         ctx.shadowColor = 'rgba(0,0,0,0.22)';
         ctx.shadowBlur = 16;
         ctx.shadowOffsetY = 5;
@@ -759,7 +766,7 @@
         ctx.fillText('VS', 960, textY);
         ctx.restore();
 
-        // 荳区ｮｵ・壹Ο繝ｼ繝槫ｭ礼畑縺ｮ蟆代＠譏弱ｋ縺・ｸｯ
+        // 下段：ローマ字用の少し明るい帯
         const romanY = bandY + jpH;
         const lowerGrad = ctx.createLinearGradient(0, romanY, 0, romanY + romanH);
         lowerGrad.addColorStop(0, $('subColor').value);
@@ -783,7 +790,7 @@
         drawImpactTextCondensed(rightRoman, rightX + rightW / 2, romanY + romanH / 2 + 1, rightW - 24, 64, '#ffffff', 'transparent', 'rgba(0,0,0,0.18)', 12, 3, FONT_LATIN, 800, 0);
         ctx.restore();
 
-        // 陬懆ｶｳ諠・ｱ縺ｯ譛荳矩Κ縺ｮ閭梧勹荳翫↓陦ｨ遉ｺ
+        // 補足情報は最下部の背景上に表示
         if (supplement) {
           drawImpactTextFit(
             supplement,
@@ -923,15 +930,15 @@
         $('leftPlayer').addEventListener('change', () => applyPlayer('left', $('leftPlayer').value, true));
         $('rightPlayer').addEventListener('change', () => applyPlayer('right', $('rightPlayer').value, true));
         $('leftPhotoOverride').addEventListener('change', (e) => {
-          $('leftPhotoStatus').textContent = e.target.files[0]?.name || '譛ｪ驕ｸ謚・;
+          $('leftPhotoStatus').textContent = e.target.files[0]?.name || '未選択';
           loadFileImage(e.target.files[0], img => { state.leftImage = img; state.leftOverride = true; });
         });
         $('rightPhotoOverride').addEventListener('change', (e) => {
-          $('rightPhotoStatus').textContent = e.target.files[0]?.name || '譛ｪ驕ｸ謚・;
+          $('rightPhotoStatus').textContent = e.target.files[0]?.name || '未選択';
           loadFileImage(e.target.files[0], img => { state.rightImage = img; state.rightOverride = true; });
         });
         $('bgPhoto').addEventListener('change', (e) => {
-          $('bgPhotoStatus').textContent = e.target.files[0]?.name || '譛ｪ驕ｸ謚・;
+          $('bgPhotoStatus').textContent = e.target.files[0]?.name || '未選択';
           loadFileImage(e.target.files[0], img => { state.bgImage = img; });
         });
 
