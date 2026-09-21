@@ -257,7 +257,7 @@
   <script>
     // GitHub Pages / browser cache対策。リリースごとにAPP_BUILDを更新する。
     (() => {
-      const APP_BUILD = '11';
+      const APP_BUILD = '12';
       const url = new URL(window.location.href);
       if (url.searchParams.get('v') !== APP_BUILD) {
         url.searchParams.set('v', APP_BUILD);
@@ -265,12 +265,12 @@
       }
     })();
   </script>
-  <script src="players.js?v=11"></script>
+  <script src="players.js?v=12"></script>
   <script>
     (() => {
       'use strict';
 
-      const APP_BUILD = '11';
+      const APP_BUILD = '12';
       console.info(`[JBS Thumbnail] build ${APP_BUILD}`);
 
       const SERIES = {
@@ -573,7 +573,7 @@
           ctx.restore();
 
           drawImpactTextFit(editionText, 960, titleYBase, 860, 84, 54, accent, 'transparent', 'rgba(255,255,255,0)', 0, 0, 'center', FONT_JP, 900, 0);
-          drawImpactTextFit(series, 960, 310, 920, 196, 100, accent, alpha('#ffffff', 0.80), 'rgba(0,0,0,0.18)', 22, 8, 'center', FONT_JP, 900, 5);
+          drawImpactTextFit(series, 960, 302, 960, 222, 112, accent, alpha('#ffffff', 0.80), 'rgba(0,0,0,0.18)', 24, 8, 'center', FONT_JP, 900, 5);
 
           ctx.save();
           ctx.strokeStyle = accent;
@@ -585,7 +585,7 @@
           ctx.stroke();
           ctx.restore();
 
-          drawImpactTextFit(stage, 960, 552, 760, 158, 82, mix(accent, -0.08), 'transparent', 'rgba(255,255,255,0.22)', 14, 0, 'center', FONT_JP, 900, 0);
+          drawImpactTextFit(stage, 960, 556, 780, 162, 84, mix(accent, -0.08), 'transparent', 'rgba(255,255,255,0.22)', 14, 0, 'center', FONT_JP, 900, 0);
         } else {
           const panelGrad = ctx.createLinearGradient(0, 90, 0, 690);
           panelGrad.addColorStop(0, 'rgba(255,255,255,0.10)');
@@ -614,7 +614,7 @@
           ctx.restore();
 
           drawImpactTextFit(editionText, 960, titleYBase, 820, 104, 64, titleColor, accent, shadow, 30, 10, 'center', FONT_JP, 900, 6);
-          drawImpactTextFit(series, 960, 330, 760, 236, 126, titleColor, accent, shadow, 40, 13, 'center', FONT_JP, 900, 9);
+          drawImpactTextFit(series, 960, 324, 840, 274, 146, titleColor, accent, shadow, 44, 14, 'center', FONT_JP, 900, 10);
 
           ctx.save();
           ctx.strokeStyle = alpha('#ffffff', 0.96);
@@ -626,7 +626,7 @@
           ctx.stroke();
           ctx.restore();
 
-          drawImpactTextFit(stage, 960, 565, 800, 166, 86, titleColor, accent, shadow, 32, 10, 'center', FONT_JP, 900, 8);
+          drawImpactTextFit(stage, 960, 576, 820, 166, 86, titleColor, accent, shadow, 32, 10, 'center', FONT_JP, 900, 8);
         }
       }
       function drawNameBands(accent, isPhotoMode) {
@@ -638,10 +638,11 @@
 
         // 当初のサムネイルに近い「下帯」構成。
         // 上段：日本語名を大きく、下段：ローマ字名。中央にVSを独立配置。
-        const bandY = 736;
+        const footerH = 100;
         const jpH = 188;
         const romanH = 88;
-        const footerY = bandY + jpH + romanH;
+        const footerY = 1080 - footerH;
+        const bandY = footerY - jpH - romanH;
 
         // 上段の濃色帯
         const topGrad = ctx.createLinearGradient(0, bandY, 0, bandY + jpH);
