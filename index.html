@@ -305,6 +305,976 @@
   <script>
     // GitHub Pages / browser cache対策。リリースごとにAPP_BUILDを更新する。
     (() => {
+      const APP_BUILD = '68';
+      const url = new URL(window.location.href);
+      if (url.searchParams.get('v') !== APP_BUILD) {
+        url.searchParams.set('v', APP_BUILD);
+        window.location.replace(url.toString());
+      }
+    })();
+  </script>
+  <script src="players.js?v=68"></script>
+  <script>
+    (() => {
+      'use strict';
+
+      const APP_BUILD = '68';
+      console.info(`[JBS Thumbnail] build ${APP_BUILD}`);
+
+      const SERIES = {
+        '日本選手権': '#3C3C3C',
+        '盤聖戦': '#6B0D2F',
+        '名人戦': '#6B670D',
+        '王位戦': '#0D6B2F',
+        '賽王戦': '#0D236B',
+        '棋聖戦': '#6B230D',
+        '女王戦': '#6B0D5B',
+        '新鋭戦': '#0D676B'
+      };
+
+      let players = Array.isArray(window.JBS_PLAYERS) ? [...window.JBS_PLAYERS] : [];
+      const $ = (id) => document.getElementById(id);
+      const canvas = $('canvas');
+      const ctx = canvas.getContext('2d');
+      const FONT_JP = '"Noto Sans JP", "Yu Gothic", "YuGothic", "Hiragino Sans", "Meiryo", sans-serif';
+      const FONT_LATIN = 'Arial, Helvetica, sans-serif';
+
+      const state = {
+        leftImage: null,
+        rightImage: null,
+        bgImage: null,
+        leftOverride: false,
+        rightOverride: false
+      };
+
+      function hexToRgb(hex) {
+        const v = hex.replace('#', '');
+        return {
+          r: parseInt(v.slice(0,2), 16),
+          g: parseInt(v.slice(2,4), 16),
+          b: parseInt(v.slice(4,6), 16)
+        };
+      }
+      function alpha(hex, a) {
+        const {r,g,b} = hexToRgb(hex);
+        return `rgba(${r},${g},${b},${a})`;
+      }
+      function mix(hex, amount = 0.2) {
+        const {r,g,b} = hexToRgb(hex);
+        const t = amount >= 0 ? 255 : 0;
+        const p = Math.abs(amount);
+        const c = (x) => Math.round(x + (t - x) * p);
+        const toHex = (x) => c(x).toString(16).padStart(2, '0');
+        return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+      }
+      function syncSubColor() {
+        $('subColor').value = mix($('mainColor').value, 0.32);
+      }
+      let lastSeries = null;
+      function applySeriesColors() {
+        const series = $('series').value;
+        if (series !== lastSeries) {
+          lastSeries = series;
+          if (Object.prototype.hasOwnProperty.call(SERIES, series)) {
+            $('mainColor').value = SERIES[series];
+            syncSubColor();
+          }
+        }
+        render();
+      }
+      function roundedRect(x, y, w, h, r) {
+        const rr = Math.min(r, w / 2, h / 2);
+        ctx.beginPath();
+        ctx.moveTo(x + rr, y);
+        ctx.arcTo(x + w, y, x + w, y + h, rr);
+        ctx.arcTo(x + w, y + h, x, y + h, rr);
+        ctx.arcTo(x, y + h, x, y, rr);
+        ctx.arcTo(x, y, x + w, y, rr);
+        ctx.closePath();
+      }
+      function drawCover(img, x, y, w, h, posX = 50, posY = 50) {
+        if (!img || !img.naturalWidth) return;
+        const iw = img.naturalWidth, ih = img.naturalHeight;
+        const scale = Math.max(w / iw, h / ih);
+        const sw = w / scale, sh = h / scale;
+        const sx = Math.max(0, Math.min(iw - sw, (iw - sw) * (posX / 100)));
+        const sy = Math.max(0, Math.min(ih - sh, (ih - sh) * (posY / 100)));
+        ctx.drawImage(img, sx, sy, sw, sh, x, y, w, h);
+      }
+      function drawScaledBackground(img, x, y, w, h, posX = 50, posY = 50, zoom = 100) {
+        if (!img || !img.naturalWidth) return;
+        const baseScale = Math.max(w / img.naturalWidth, h / img.naturalHeight);
+        const scale = baseScale * (zoom / 100);
+        const dw = img.naturalWidth * scale;
+        const dh = img.naturalHeight * scale;
+        const dx = x + (w - dw) * (posX / 100);
+        const dy = y + (h - dh) * (posY / 100);
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(x, y, w, h);
+        ctx.clip();
+        ctx.drawImage(img, dx, dy, dw, dh);
+        ctx.restore();
+      }
+      function fitText(text, maxWidth, startSize, minSize, family = FONT_JP, weight = 800) {
+        let size = startSize;
+        while (size > minSize) {
+          ctx.font = `${weight} ${size}px ${family}`;
+          if (ctx.measureText(text).width <= maxWidth) break;
+          size -= 2;
+        }
+        return size;
+      }
+      function drawTextFit(text, x, y, maxWidth, startSize, minSize, color, align = 'center', family = FONT_JP, weight = 800) {
+        const size = fitText(text, maxWidth, startSize, minSize, family, weight);
+        ctx.font = `${weight} ${size}px ${family}`;
+        ctx.fillStyle = color;
+        ctx.textAlign = align;
+        ctx.textBaseline = 'middle';
+        ctx.fillText(text, x, y);
+        return size;
+      }
+      function drawImpactTextFit(text, x, y, maxWidth, startSize, minSize, fill, stroke, shadowColor, shadowBlur, shadowY, align = 'center', family = FONT_JP, weight = 900, strokeWidth = 0, alignTop = false) {
+        const size = fitText(text, maxWidth, startSize, minSize, family, weight);
+        ctx.save();
+        ctx.font = `${weight} ${size}px ${family}`;
+        ctx.textAlign = align;
+        ctx.textBaseline = 'middle';
+        if (alignTop) y += ctx.measureText(text).actualBoundingBoxAscent + strokeWidth / 2;
+        if (shadowBlur) {
+          ctx.shadowColor = shadowColor;
+          ctx.shadowBlur = shadowBlur;
+          ctx.shadowOffsetY = shadowY || 0;
+        }
+        if (strokeWidth > 0) {
+          ctx.lineJoin = 'round';
+          ctx.miterLimit = 2;
+          ctx.lineWidth = strokeWidth;
+          ctx.strokeStyle = stroke;
+          ctx.strokeText(text, x, y);
+        }
+        ctx.fillStyle = fill;
+        ctx.fillText(text, x, y);
+        ctx.restore();
+        return size;
+      }
+      function drawImpactTextCondensed(text, x, y, maxWidth, size, fill, stroke, shadowColor, shadowBlur, shadowY, family = FONT_JP, weight = 900, strokeWidth = 0) {
+        ctx.save();
+        ctx.font = `${weight} ${size}px ${family}`;
+        const scaleX = Math.min(1, maxWidth / Math.max(1, ctx.measureText(text).width + strokeWidth * 2));
+        ctx.translate(x, y);
+        ctx.scale(scaleX, 1);
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.shadowColor = shadowColor;
+        ctx.shadowBlur = shadowBlur;
+        ctx.shadowOffsetY = shadowY || 0;
+        if (strokeWidth > 0) {
+          ctx.lineJoin = 'round';
+          ctx.miterLimit = 2;
+          ctx.lineWidth = strokeWidth;
+          ctx.strokeStyle = stroke;
+          ctx.strokeText(text, 0, 0);
+        }
+        ctx.fillStyle = fill;
+        ctx.fillText(text, 0, 0);
+        ctx.restore();
+      }
+      function drawBackgroundPattern(accent) {
+        const grad = ctx.createLinearGradient(0, 0, 1920, 1080);
+        grad.addColorStop(0, mix(accent, -0.18));
+        grad.addColorStop(0.55, accent);
+        grad.addColorStop(1, mix(accent, -0.06));
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, 1920, 1080);
+
+        ctx.save();
+        ctx.globalAlpha = 0.42;
+        const pointTop = -40;
+        const pointBottom = 362;
+        const gap = 7;
+        const sideMargin = 36;
+        const centerGap = 80;
+        const groupWidth = (1920 - sideMargin * 2 - centerGap) / 2;
+        const pointW = (groupWidth - gap * 5) / 6;
+        ctx.fillStyle = $('subColor').value;
+        for (const groupX of [sideMargin, 960 + centerGap / 2]) {
+          for (let i = 0; i < 6; i++) {
+            const x = groupX + i * (pointW + gap);
+            for (const isBottom of [false, true]) {
+              const baseY = isBottom ? 1080 - pointTop : pointTop;
+              const tipY = isBottom ? 1080 - pointBottom : pointBottom;
+              ctx.beginPath();
+              ctx.moveTo(x, baseY);
+              ctx.lineTo(x + pointW, baseY);
+              ctx.lineTo(x + pointW / 2, tipY);
+              ctx.closePath();
+              ctx.fill();
+            }
+          }
+        }
+
+        ctx.restore();
+
+        const v = ctx.createLinearGradient(0, 0, 0, 1080);
+        v.addColorStop(0, 'rgba(0,0,0,0.08)');
+        v.addColorStop(0.46, 'rgba(0,0,0,0.00)');
+        v.addColorStop(1, 'rgba(0,0,0,0.24)');
+        ctx.fillStyle = v;
+        ctx.fillRect(0, 0, 1920, 1080);
+      }
+      function drawPortraitFrame(img, x, y, size, accent, side = 'left') {
+        const pad = 10;
+        ctx.save();
+        ctx.shadowColor = 'rgba(0,0,0,.22)';
+        ctx.shadowBlur = 26;
+        ctx.shadowOffsetY = 10;
+        ctx.fillStyle = alpha('#000000', 0.18);
+        roundedRect(x - 14, y - 14, size + 28, size + 28, 12);
+        ctx.fill();
+        ctx.shadowColor = 'transparent';
+        ctx.fillStyle = '#fff';
+        roundedRect(x - 10, y - 10, size + 20, size + 20, 8);
+        ctx.fill();
+        ctx.fillStyle = accent;
+        roundedRect(x - pad, y - pad, size + pad * 2, size + pad * 2, 6);
+        ctx.fill();
+        ctx.fillStyle = '#fff';
+        roundedRect(x, y, size, size, 12);
+        ctx.fill();
+        if (img && img.naturalWidth) {
+          ctx.save();
+          roundedRect(x, y, size, size, 12);
+          ctx.clip();
+          drawCover(img, x, y, size, size, 50, 50);
+          ctx.restore();
+        } else {
+          ctx.fillStyle = '#e8ebef';
+          roundedRect(x, y, size, size, 12);
+          ctx.fill();
+          ctx.fillStyle = '#8892a0';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.font = `700 34px ${FONT_JP}`;
+          
+        }
+        ctx.restore();
+      }
+      function drawCenterTitle(accent, isPhotoMode) {
+        const series = $('series').value;
+        const stage = $('stage').value.trim() || '決勝';
+        const stagePrefix = $('stagePrefix').value.trim();
+        const editionText = $('edition').value;
+        // Align the edition with the portrait top; reserve separate bands for each line.
+        const titleYBase = 142;
+        const titleWidth = 740;
+        const subtitle = $('seriesSubtitle').value.trim();
+        const seriesY = subtitle ? 340 : 374;
+        const seriesSize = subtitle ? 176 : 240;
+        function drawSeries(fill, stroke, textShadow, blur, offset, strokeWidth) {
+          if (!subtitle) {
+            drawImpactTextCondensed(series, 960, seriesY, titleWidth, seriesSize, fill, stroke, textShadow, blur, offset, FONT_JP, 900, strokeWidth);
+            return;
+          }
+          for (const [text, centerY, maxSize, outline] of [[series, seriesY, seriesSize, strokeWidth], [subtitle, 468, 56, strokeWidth / 2]]) {
+            drawImpactTextCondensed(text, 960, centerY, titleWidth, maxSize, fill, stroke, textShadow, 12, 3, FONT_JP, 900, outline);
+          }
+        }
+        const stageY = (510 + 704) / 2;
+        function drawFinalMarks(y, color, outline) {
+          ctx.save();
+          ctx.fillStyle = color;
+          ctx.globalAlpha = 0.9;
+          for (const x of [770, 1150]) {
+            ctx.beginPath();
+            for (let i = 0; i < 10; i++) {
+              const angle = -Math.PI / 2 + i * Math.PI / 5;
+              const radius = i % 2 === 0 ? 40 : 17;
+              const px = x + Math.cos(angle) * radius;
+              const py = y + Math.sin(angle) * radius;
+              if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+            }
+            ctx.closePath();
+            ctx.fill();
+            ctx.strokeStyle = outline;
+            ctx.lineWidth = 4;
+            ctx.stroke();
+          }
+          ctx.restore();
+        }
+        function drawStage(fill, stroke, textShadow, blur, offset, strokeWidth) {
+          const isFinal = stage === '決勝';
+          if (!stagePrefix) {
+            drawImpactTextFit(stage, 960, stageY, titleWidth, isFinal ? 144 : 124, 2, fill, stroke, textShadow, blur, offset, 'center', FONT_JP, 900, strokeWidth);
+            if (isFinal) drawFinalMarks(stageY, fill, stroke);
+            return;
+          }
+          drawImpactTextFit(stagePrefix, 960, 552, titleWidth, 56, 2, fill, stroke, textShadow, 10, 2, 'center', FONT_JP, 900, strokeWidth / 2);
+          drawImpactTextFit(stage, 960, 646, titleWidth, isFinal ? 112 : 104, 2, fill, stroke, textShadow, 18, 5, 'center', FONT_JP, 900, strokeWidth);
+          if (isFinal) drawFinalMarks(646, fill, stroke);
+        }
+        const titleColor = '#ffffff';
+        const shadow = 'rgba(0,0,0,0.35)';
+
+        if (isPhotoMode) {
+          ctx.save();
+          ctx.lineWidth = 80;
+          ctx.strokeStyle = alpha('#ffffff', 0.58);
+          ctx.beginPath();
+          ctx.arc(960, 384, 325, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.restore();
+
+          drawImpactTextFit(editionText, 960, titleYBase, titleWidth, 96, 2, titleColor, accent, shadow, 34, 10, 'center', FONT_JP, 900, 9, true);
+          drawSeries(titleColor, accent, shadow, 48, 14, 14);
+
+          ctx.save();
+          ctx.lineCap = 'round';
+          ctx.beginPath();
+          ctx.moveTo(680, 510);
+          ctx.lineTo(1240, 510);
+          ctx.strokeStyle = accent;
+          ctx.lineWidth = 17;
+          ctx.stroke();
+          ctx.strokeStyle = alpha('#ffffff', 0.96);
+          ctx.lineWidth = 9;
+          ctx.stroke();
+          ctx.restore();
+
+          drawStage(titleColor, accent, shadow, 36, 10, 11);
+        } else {
+          const panelGrad = ctx.createLinearGradient(0, 90, 0, 690);
+          panelGrad.addColorStop(0, 'rgba(255,255,255,0.10)');
+          panelGrad.addColorStop(1, 'rgba(255,255,255,0.03)');
+          ctx.save();
+          ctx.shadowColor = 'rgba(0,0,0,.26)';
+          ctx.shadowBlur = 34;
+          ctx.shadowOffsetY = 10;
+          ctx.beginPath();
+          ctx.arc(960, 384, 374, 0, Math.PI * 2);
+          ctx.fillStyle = panelGrad;
+          ctx.fill();
+          ctx.restore();
+
+          ctx.save();
+          ctx.lineWidth = 80;
+          ctx.strokeStyle = alpha('#ffffff', 0.58);
+          ctx.beginPath();
+          ctx.arc(960, 384, 325, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.restore();
+
+          drawImpactTextFit(editionText, 960, titleYBase, titleWidth, 96, 2, titleColor, accent, shadow, 30, 10, 'center', FONT_JP, 900, 6, true);
+          drawSeries(titleColor, accent, shadow, 44, 14, 10);
+
+          ctx.save();
+          ctx.lineCap = 'round';
+          ctx.beginPath();
+          ctx.moveTo(680, 510);
+          ctx.lineTo(1240, 510);
+          ctx.strokeStyle = accent;
+          ctx.lineWidth = 15;
+          ctx.stroke();
+          ctx.strokeStyle = alpha('#ffffff', 0.96);
+          ctx.lineWidth = 7;
+          ctx.stroke();
+          ctx.restore();
+
+          drawStage(titleColor, accent, shadow, 32, 10, 8);
+        }
+      }
+      function drawNameBands(accent, isPhotoMode) {
+        const leftName = $('leftName').value.trim();
+        const rightName = $('rightName').value.trim();
+        const leftRoman = $('leftRoman').value.trim();
+        const rightRoman = $('rightRoman').value.trim();
+        const supplement = $('supplement').value.trim();
+
+        // 当初のサムネイルに近い「下帯」構成。
+        // 上段：日本語名を大きく、下段：ローマ字名。中央にVSを独立配置。
+        const footerH = 100;
+        const jpH = 188;
+        const romanH = 88;
+        const footerY = 1080 - footerH;
+        const bandY = footerY - jpH - romanH;
+
+        // 名前帯全体の背面に影を落とし、背景から浮かせる。
+        ctx.save();
+        ctx.shadowColor = 'rgba(0,0,0,0.48)';
+        ctx.shadowBlur = 32;
+        ctx.shadowOffsetY = 14;
+        ctx.fillStyle = accent;
+        ctx.fillRect(0, bandY, 1920, jpH + romanH);
+        ctx.restore();
+
+        // 日本語名の帯は模様なしの単色。
+        ctx.fillStyle = accent;
+        ctx.fillRect(0, bandY, 1920, jpH);
+
+        // 左右の名前を必ず別領域にクリップして中央と干渉させない
+        const vsLeft = 884;
+        const vsRight = 1036;
+        const leftX = 0;
+        const leftW = vsLeft;
+        const rightX = vsRight;
+        const rightW = 1920 - vsRight;
+        const jpY = bandY + 95;
+
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(leftX, bandY + 10, leftW, jpH - 20);
+        ctx.clip();
+        drawImpactTextCondensed(leftName, leftX + leftW / 2, jpY, leftW - 28, 132, '#ffffff', alpha('#000000', 0.20), 'rgba(0,0,0,0.30)', 24, 8, FONT_JP, 900, 2);
+        ctx.restore();
+
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(rightX, bandY + 10, rightW, jpH - 20);
+        ctx.clip();
+        drawImpactTextCondensed(rightName, rightX + rightW / 2, jpY, rightW - 28, 132, '#ffffff', alpha('#000000', 0.20), 'rgba(0,0,0,0.30)', 24, 8, FONT_JP, 900, 2);
+        ctx.restore();
+
+        // VS：白い角丸プレートに大会色の太字。
+        ctx.save();
+        ctx.shadowColor = 'rgba(0,0,0,0.22)';
+        ctx.shadowBlur = 16;
+        ctx.shadowOffsetY = 5;
+        roundedRect(884, jpY - 49, 152, 98, 18);
+        ctx.fillStyle = '#ffffff';
+        ctx.fill();
+        ctx.shadowColor = 'transparent';
+        ctx.font = '900 60px ' + FONT_LATIN;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = accent;
+        ctx.strokeStyle = accent;
+        ctx.lineWidth = 1;
+        ctx.lineJoin = 'round';
+        const metrics = ctx.measureText('VS');
+        const textY = jpY + (metrics.actualBoundingBoxAscent - metrics.actualBoundingBoxDescent) / 2;
+        ctx.strokeText('VS', 960, textY);
+        ctx.fillText('VS', 960, textY);
+        ctx.restore();
+
+        // 下段：ローマ字用の少し明るい帯
+        const romanY = bandY + jpH;
+        const lowerGrad = ctx.createLinearGradient(0, romanY, 0, romanY + romanH);
+        lowerGrad.addColorStop(0, $('subColor').value);
+        lowerGrad.addColorStop(1, mix($('subColor').value, -0.08));
+        ctx.fillStyle = lowerGrad;
+        ctx.fillRect(0, romanY, 1920, romanH);
+        ctx.fillStyle = alpha('#ffffff', 0.16);
+        ctx.fillRect(0, romanY, 1920, 2);
+
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(leftX, romanY, leftW, romanH);
+        ctx.clip();
+        drawImpactTextCondensed(leftRoman, leftX + leftW / 2, romanY + romanH / 2 + 1, leftW - 24, 64, '#ffffff', 'transparent', 'rgba(0,0,0,0.18)', 12, 3, FONT_LATIN, 800, 0);
+        ctx.restore();
+
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(rightX, romanY, rightW, romanH);
+        ctx.clip();
+        drawImpactTextCondensed(rightRoman, rightX + rightW / 2, romanY + romanH / 2 + 1, rightW - 24, 64, '#ffffff', 'transparent', 'rgba(0,0,0,0.18)', 12, 3, FONT_LATIN, 800, 0);
+        ctx.restore();
+
+        // 補足情報は最下部の背景上に表示
+        if (supplement) {
+          drawImpactTextFit(
+            supplement,
+            960,
+            footerY + (1080 - footerY) / 2,
+            1760,
+            64,
+            28,
+            '#ffffff',
+            'transparent',
+            'rgba(0,0,0,0.65)',
+            8,
+            0,
+            'center',
+            FONT_JP,
+            900,
+            0
+          );
+        }
+      }
+
+      function render() {
+        const series = $('series').value;
+        const accent = $('mainColor').value;
+        $('mainColorCode').textContent = accent.toUpperCase();
+        $('subColorCode').textContent = $('subColor').value.toUpperCase();
+        const bgMode = $('bgMode').value;
+        const hasBackgroundPhoto = bgMode !== 'none';
+        const showPlayerPhotos = bgMode !== 'photo';
+        const photoDesign = hasBackgroundPhoto && state.bgImage && state.bgImage.naturalWidth;
+        document.documentElement.style.setProperty('--accent', accent);
+        $('photoControls').classList.toggle('hidden', !hasBackgroundPhoto);
+
+        ctx.clearRect(0, 0, 1920, 1080);
+        if (photoDesign) {
+          ctx.fillStyle = accent;
+          ctx.fillRect(0, 0, 1920, 1080);
+          drawScaledBackground(state.bgImage, 0, 0, 1920, 1080, Number($('bgX').value), Number($('bgY').value), Number($('bgScale').value));
+          const shade = Number($('bgShade').value) / 100;
+          if (shade > 0) {
+            ctx.fillStyle = `rgba(0,0,0,${shade})`;
+            ctx.fillRect(0, 0, 1920, 1080);
+          }
+        } else {
+          drawBackgroundPattern(accent);
+        }
+        if (showPlayerPhotos) {
+          drawPortraitFrame(state.leftImage, 56, 162, 512, accent, 'left');
+          drawPortraitFrame(state.rightImage, 1352, 162, 512, accent, 'right');
+        }
+
+        drawCenterTitle(accent, photoDesign);
+        drawNameBands(accent, photoDesign);
+        const sponsor = $('sponsor').value.trim();
+        if (sponsor) {
+          drawImpactTextFit(sponsor, 960, 88, 1800, 96, 2, '#ffffff', accent, 'rgba(0,0,0,0.45)', 16, 4, 'center', FONT_JP, 900, 10);
+        }
+      }
+
+      function loadImage(src) {
+        return new Promise((resolve, reject) => {
+          const img = new Image();
+          img.onload = () => resolve(img);
+          img.onerror = reject;
+          img.src = src;
+        });
+      }
+      async function applyPlayer(side, playerId, forcePhoto = true) {
+        const p = players.find(x => x.id === playerId) || players[0];
+        if (!p) return;
+        $(`${side}Name`).value = p.name || '';
+        $(`${side}Roman`).value = p.roman || '';
+        if (forcePhoto) {
+          try {
+            const img = await loadImage(p.photo);
+            state[`${side}Image`] = img;
+            state[`${side}Override`] = false;
+          } catch (e) {
+            state[`${side}Image`] = null;
+          }
+        }
+        render();
+      }
+      function loadFileImage(file, cb) {
+        if (!file) return;
+        const url = URL.createObjectURL(file);
+        const img = new Image();
+        img.onload = () => { cb(img); URL.revokeObjectURL(url); render(); };
+        img.src = url;
+      }
+      async function loadGeneratedPlayers() {
+        try {
+          const response = await fetch(`players.json?v=${APP_BUILD}`, { cache: 'no-store' });
+          if (!response.ok) return;
+          const generated = await response.json();
+          if (!Array.isArray(generated)) return;
+          const existing = new Set(players.map((player) => `${player.name}\u0000${player.roman}`));
+          players.push(...generated.filter((player) => !existing.has(`${player.name}\u0000${player.roman}`)));
+        } catch (error) {
+          console.warn('[JBS Thumbnail] players.json could not be loaded.', error);
+        }
+      }
+      function populate() {
+        Object.keys(SERIES).forEach((name) => {
+          const opt = document.createElement('option');
+          opt.value = name;
+          $('seriesList').appendChild(opt);
+        });
+        ['leftPlayer','rightPlayer'].forEach((id) => {
+          players.forEach((p) => {
+            const opt = document.createElement('option');
+            opt.value = p.id;
+            opt.textContent = `${p.name} / ${p.roman}`;
+            $(id).appendChild(opt);
+          });
+        });
+        if (players[0]) $('leftPlayer').value = players[0].id;
+        if (players[1]) $('rightPlayer').value = players[1].id;
+        else if (players[0]) $('rightPlayer').value = players[0].id;
+      }
+      function bind() {
+        ['sponsor','seriesSubtitle','edition','stagePrefix','stage','supplement','bgMode','bgX','bgY','bgScale','bgShade','leftName','leftRoman','rightName','rightRoman']
+          .forEach(id => $(id).addEventListener('input', render));
+        $('series').addEventListener('input', applySeriesColors);
+        $('series').addEventListener('change', applySeriesColors);
+        $('mainColor').addEventListener('input', () => { syncSubColor(); render(); });
+        $('subColor').addEventListener('input', render);
+        $('bgMode').addEventListener('change', render);
+        document.querySelectorAll('[data-picker]').forEach((button) => {
+          button.addEventListener('click', () => {
+            const input = $(button.dataset.picker);
+            input.focus();
+            if (typeof input.showPicker === 'function') input.showPicker();
+          });
+        });
+
+        $('leftPlayer').addEventListener('change', () => applyPlayer('left', $('leftPlayer').value, true));
+        $('rightPlayer').addEventListener('change', () => applyPlayer('right', $('rightPlayer').value, true));
+        $('leftPhotoOverride').addEventListener('change', (e) => {
+          $('leftPhotoStatus').textContent = e.target.files[0]?.name || '未選択';
+          loadFileImage(e.target.files[0], img => { state.leftImage = img; state.leftOverride = true; });
+        });
+        $('rightPhotoOverride').addEventListener('change', (e) => {
+          $('rightPhotoStatus').textContent = e.target.files[0]?.name || '未選択';
+          loadFileImage(e.target.files[0], img => { state.rightImage = img; state.rightOverride = true; });
+        });
+        $('bgPhoto').addEventListener('change', (e) => {
+          $('bgPhotoStatus').textContent = e.target.files[0]?.name || '未選択';
+          loadFileImage(e.target.files[0], img => { state.bgImage = img; });
+        });
+
+        $('downloadBtn').addEventListener('click', () => {
+          render();
+          const series = [$('series').value, $('seriesSubtitle').value.trim()].filter(Boolean).join('_');
+          const stage = [$('stagePrefix').value.trim(), $('stage').value.trim()].filter(Boolean).join('_') || 'match';
+          const left = $('leftName').value.trim().replace(/\s+/g,'');
+          const right = $('rightName').value.trim().replace(/\s+/g,'');
+          const filename = `JBS_${series}_${stage}_${left}_vs_${right}_1920x1080.png`;
+          canvas.toBlob((blob) => {
+            if (!blob) return;
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+          }, 'image/png');
+        });
+      }
+
+      async function init() {
+        await loadGeneratedPlayers();
+        populate();
+        bind();
+        applySeriesColors();
+        await Promise.all([
+          applyPlayer('left', $('leftPlayer').value, true),
+          applyPlayer('right', $('rightPlayer').value, true)
+        ]);
+        render();
+      }
+      init();
+    })();
+  </script>
+</body>
+</html>
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>JBS YouTube Thumbnail Maker</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #172033;
+      --muted: #657089;
+      --line: #dfe3eb;
+      --panel: #ffffff;
+      --bg: #f4f6f9;
+      --accent: #6B0D2F;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; }
+    body {
+      font-family: "Noto Sans JP", "Yu Gothic", "YuGothic", "Hiragino Sans", "Meiryo", sans-serif;
+      color: var(--ink);
+      background: var(--bg);
+    }
+    button, input, select { font: inherit; }
+    .app {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    .controls {
+      padding: 24px;
+      background: var(--panel);
+      border-top: 1px solid var(--line);
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      align-items: start;
+      gap: 12px;
+    }
+    h1 { font-size: 22px; margin: 0 0 4px; }
+    .lead { margin: 0 0 22px; color: var(--muted); font-size: 13px; line-height: 1.6; }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .field { min-width: 0; margin: 0; }
+    .form-row {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      align-items: start;
+      gap: 12px;
+      min-width: 0;
+    }
+    .event-row { grid-template-columns: repeat(7, minmax(0, 1fr)); }
+    #photoControls { grid-column: 2 / -1; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+    #photoControls .hint { grid-column: 1 / -1; }
+    @media (max-width: 700px) {
+      .form-row, .event-row, #photoControls { grid-template-columns: minmax(0, 1fr); }
+      #photoControls { grid-column: 1; }
+    }
+    label { display: block; font-size: 12px; font-weight: 700; color: #4b556b; margin-bottom: 5px; }
+    input, select {
+      width: 100%;
+      min-height: 40px;
+      border: 1px solid #cfd5df;
+      border-radius: 9px;
+      padding: 8px 10px;
+      background: #fff;
+      color: var(--ink);
+      outline: none;
+    }
+    input:focus, select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 13%, transparent); }
+    .combo-input { position: relative; }
+    .combo-input input { padding-right: 38px; appearance: none; }
+    .combo-input input::-webkit-calendar-picker-indicator { display: none !important; opacity: 0; }
+    .combo-input button {
+      position: absolute; top: 1px; right: 1px; width: 36px; height: 38px;
+      border: 0; border-left: 1px solid #cfd5df; border-radius: 0 8px 8px 0;
+      background: #fff; color: var(--ink); cursor: pointer; font-size: 0;
+    }
+    .combo-input button::after {
+      content: ''; display: block; width: 0; height: 0; margin: auto;
+      border-left: 6px solid transparent; border-right: 6px solid transparent;
+      border-top: 8px solid var(--ink);
+    }
+    .native-file { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+    .file-picker { display: flex; align-items: center; min-height: 40px; border: 1px solid #cfd5df; border-radius: 9px; overflow: hidden; background: #fff; }
+    .file-button { display: flex; align-items: center; align-self: stretch; margin: 0; padding: 0 10px; border-right: 1px solid #cfd5df; color: var(--ink); background: #f7f8fa; cursor: pointer; white-space: nowrap; }
+    .file-status { min-width: 0; padding: 0 10px; overflow: hidden; color: var(--muted); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+    input[type="file"] { padding: 7px; font-size: 12px; }
+    .color-value { display: flex; align-items: center; gap: 10px; }
+    input[type="color"] { width: 40px; height: 40px; flex: 0 0 40px; padding: 3px; border-radius: 4px; cursor: pointer; }
+    input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
+    input[type="color"]::-webkit-color-swatch { border: 0; border-radius: 0; }
+    input[type="color"]::-moz-color-swatch { border: 0; border-radius: 0; }
+    .color-value output { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+    input[type="range"] { min-height: 28px; padding: 0; }
+    .hint { font-size: 11px; color: var(--muted); line-height: 1.55; margin-top: 4px; }
+    .preview-download {
+      position: absolute;
+      top: 24px;
+      right: 24px;
+      z-index: 2;
+      border: 0;
+      border-radius: 999px;
+      padding: 10px 16px;
+      font-weight: 800;
+      color: #fff;
+      background: var(--accent);
+      cursor: pointer;
+      box-shadow: 0 6px 18px color-mix(in srgb, var(--accent) 25%, transparent);
+    }
+    .preview-wrap {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      padding: 24px;
+      gap: 12px;
+    }
+    .preview-meta { display: flex; justify-content: space-between; align-items: center; gap: 12px; color: var(--muted); font-size: 12px; }
+    .canvas-shell {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 0;
+    }
+    canvas {
+      display: block;
+      width: min(100%, 640px);
+      height: auto;
+      
+      background: #fff;
+      box-shadow: 0 12px 40px rgba(28, 39, 60, .16);
+      border-radius: 4px;
+    }
+    .accent-chip { display:inline-flex; align-items:center; gap:7px; }
+    .accent-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--accent); }
+    .hidden { display: none !important; }
+    @media (max-width: 980px) {
+      .app { grid-template-columns: 1fr; }
+      .controls { grid-template-columns: minmax(0, 1fr); padding: 14px; }
+      .preview-wrap { padding: 14px; }
+      canvas { width: min(100%, 640px); }
+      .preview-download { top: 14px; right: 14px; padding: 9px 14px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <main class="preview-wrap">
+      <button class="preview-download" id="downloadBtn" type="button">PNG保存</button>
+      <div class="canvas-shell">
+        <canvas id="canvas" width="1920" height="1080" aria-label="サムネイルプレビュー"></canvas>
+      </div>
+    </main>
+
+    <aside class="controls">
+      <section class="form-row event-row">
+        <div class="field">
+          <label for="sponsor">冠名</label>
+          <input id="sponsor" type="text" value="" />
+        </div>
+        <div class="field">
+          <label for="edition">回次等</label>
+          <input id="edition" type="text" value="JBS 第32期" />
+        </div>
+        <div class="field">
+          <label for="series">大会名</label>
+          <div class="combo-input">
+            <input id="series" list="seriesList" value="盤聖戦" placeholder="候補から選択" />
+            <button type="button" data-picker="series" aria-label="大会名の候補を表示"></button>
+          </div>
+          <datalist id="seriesList"></datalist>
+        </div>
+        <div class="field">
+          <label for="seriesSubtitle">大会名（小）</label>
+          <input id="seriesSubtitle" type="text" value="" />
+        </div>
+        <div class="field">
+          <label for="stage">試合名</label>
+          <div class="combo-input">
+            <input id="stage" list="stageList" value="決勝" placeholder="候補から選択" />
+            <button type="button" data-picker="stage" aria-label="試合名の候補を表示"></button>
+          </div>
+          <datalist id="stageList">
+            <option value="決勝"></option>
+            <option value="準決勝"></option>
+            <option value="準々決勝"></option>
+            <option value="１回戦"></option>
+            <option value="２回戦"></option>
+            <option value="３回戦"></option>
+            <option value="本戦1回戦"></option>
+            <option value="本戦2回戦"></option>
+            <option value="本戦3回戦"></option>
+          </datalist>
+        </div>
+        <div class="field">
+          <label for="stagePrefix">試合名（小）</label>
+          <input id="stagePrefix" type="text" value="" />
+        </div>
+        <div class="field">
+          <label for="supplement">試合補足</label>
+          <input id="supplement" value="" />
+        </div>
+      </section>
+
+<div class="form-row">
+          <div class="field">
+            <label for="leftPlayer">左選手マスタ</label>
+            <select id="leftPlayer"></select>
+          </div>
+          <div class="field">
+            <label for="leftPhotoOverride">写真変更</label>
+            <input class="native-file" id="leftPhotoOverride" type="file" accept="image/*" />
+            <div class="file-picker"><label class="file-button" for="leftPhotoOverride">選択</label><span class="file-status" id="leftPhotoStatus">未選択</span></div>
+          </div>
+          <div class="field">
+            <label for="leftName">日本語名</label>
+            <input id="leftName" />
+          </div>
+          <div class="field">
+            <label for="leftRoman">ローマ字</label>
+            <input id="leftRoman" />
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="field">
+            <label for="rightPlayer">右選手マスタ</label>
+            <select id="rightPlayer"></select>
+          </div>
+          <div class="field">
+            <label for="rightPhotoOverride">写真変更</label>
+            <input class="native-file" id="rightPhotoOverride" type="file" accept="image/*" />
+            <div class="file-picker"><label class="file-button" for="rightPhotoOverride">選択</label><span class="file-status" id="rightPhotoStatus">未選択</span></div>
+          </div>
+          <div class="field">
+            <label for="rightName">日本語名</label>
+            <input id="rightName" />
+          </div>
+          <div class="field">
+            <label for="rightRoman">ローマ字</label>
+            <input id="rightRoman" />
+          </div>
+        </div>
+
+
+      <section class="form-row">
+        <div class="field">
+          <label for="bgMode">背景写真</label>
+          <select id="bgMode">
+            <option value="none">なし</option>
+            <option value="photoPlayers">あり（顔写真表示）</option>
+            <option value="photo">あり（顔写真非表示）</option>
+          </select>
+        </div>
+        <div id="photoControls" class="hidden">
+          <div class="field">
+            <label for="bgPhoto">写真</label>
+            <input class="native-file" id="bgPhoto" type="file" accept="image/*" />
+            <div class="file-picker"><label class="file-button" for="bgPhoto">選択</label><span class="file-status" id="bgPhotoStatus">未選択</span></div>
+          </div>
+          <div class="row">
+            <div class="field">
+              <label for="bgX">左右位置</label>
+              <input id="bgX" type="range" min="0" max="100" value="50" />
+            </div>
+            <div class="field">
+              <label for="bgY">上下位置</label>
+              <input id="bgY" type="range" min="0" max="100" value="50" />
+            </div>
+          </div>
+          <div class="field">
+            <label for="bgScale">縮小・拡大</label>
+            <input id="bgScale" type="range" min="50" max="200" value="100" />
+          </div>
+          <div class="field">
+            <label for="bgShade">暗さ</label>
+            <input id="bgShade" type="range" min="0" max="70" value="0" />
+          </div>
+        </div>
+      </section>
+      <section class="form-row">
+        <div class="field">
+          <label for="mainColor">メインカラー</label>
+          <div class="color-value">
+            <input id="mainColor" type="color" value="#6b0d2f" />
+            <output id="mainColorCode" for="mainColor"></output>
+          </div>
+        </div>
+        <div class="field">
+          <label for="subColor">サブカラー</label>
+          <div class="color-value">
+            <input id="subColor" type="color" value="#832e48" />
+            <output id="subColorCode" for="subColor"></output>
+          </div>
+        </div>
+      </section>
+    </aside>
+  </div>
+
+  <script>
+    // GitHub Pages / browser cache対策。リリースごとにAPP_BUILDを更新する。
+    (() => {
       const APP_BUILD = '64';
       const url = new URL(window.location.href);
       if (url.searchParams.get('v') !== APP_BUILD) {
