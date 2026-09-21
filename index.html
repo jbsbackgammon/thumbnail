@@ -3,6 +3,9 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
   <meta name="robots" content="noindex, nofollow" />
   <title>JBS YouTube Thumbnail Maker</title>
   <style>
@@ -244,10 +247,24 @@
     </main>
   </div>
 
-  <script src="players.js"></script>
+  <script>
+    // GitHub Pages / browser cache対策。リリースごとにAPP_BUILDを更新する。
+    (() => {
+      const APP_BUILD = '08';
+      const url = new URL(window.location.href);
+      if (url.searchParams.get('v') !== APP_BUILD) {
+        url.searchParams.set('v', APP_BUILD);
+        window.location.replace(url.toString());
+      }
+    })();
+  </script>
+  <script src="players.js?v=08"></script>
   <script>
     (() => {
       'use strict';
+
+      const APP_BUILD = '08';
+      console.info(`[JBS Thumbnail] build ${APP_BUILD}`);
 
       const SERIES = {
         '日本選手権': '#3C3C3C',
