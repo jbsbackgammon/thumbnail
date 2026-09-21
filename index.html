@@ -606,29 +606,60 @@
           ctx.restore();
 
           drawImpactTextFit('バックギャモン', 960, 552, 620, 104, 54, titleColor, accent, shadow, 28, 10, 'center', FONT_JP, 900, 7);
-          drawImpactTextFit(stage, 960, 648, 820, 146, 78, titleColor, accent, shadow, 32, 12, 'center', FONT_JP, 900, 8);
+          drawImpactTextFit(stage, 960, 614, 760, 132, 72, titleColor, accent, shadow, 30, 10, 'center', FONT_JP, 900, 8);
         }
       }
+      function drawPlayerNamePlate(name, roman, x, y, w, accent, alignSide) {
+        ctx.save();
+        ctx.shadowColor = 'rgba(0,0,0,0.34)';
+        ctx.shadowBlur = 18;
+        ctx.shadowOffsetY = 7;
+        roundedRect(x, y, w, 126, 8);
+        ctx.fillStyle = 'rgba(255,255,255,0.97)';
+        ctx.fill();
+        ctx.shadowColor = 'transparent';
+
+        ctx.fillStyle = accent;
+        ctx.fillRect(alignSide === 'left' ? x : x + w - 16, y, 16, 126);
+
+        const cx = x + w / 2;
+        const jp = name || '選手名';
+        const en = roman || 'PLAYER NAME';
+        const jpSize = fitText(jp, w - 66, 82, 44, FONT_JP, 900);
+        ctx.font = `900 ${jpSize}px ${FONT_JP}`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = '#172033';
+        ctx.fillText(jp, cx, y + 49);
+
+        const enSize = fitText(en, w - 68, 34, 22, FONT_LATIN, 800);
+        ctx.font = `800 ${enSize}px ${FONT_LATIN}`;
+        ctx.fillStyle = accent;
+        ctx.fillText(en, cx, y + 96);
+        ctx.restore();
+      }
+
       function drawNameBands(accent, isPhotoMode) {
-        const y = 770;
-        const bandH = 242;
-        const leftName = $('leftName').value.trim() || '選手名';
-        const rightName = $('rightName').value.trim() || '選手名';
-        const leftRoman = $('leftRoman').value.trim() || 'PLAYER NAME';
-        const rightRoman = $('rightRoman').value.trim() || 'PLAYER NAME';
+        const leftName = $('leftName').value.trim();
+        const rightName = $('rightName').value.trim();
+        const leftRoman = $('leftRoman').value.trim();
+        const rightRoman = $('rightRoman').value.trim();
         const supplement = $('supplement').value.trim();
 
+        // Names are deliberately separated from the center title so they never disappear behind it.
+        drawPlayerNamePlate(leftName, leftRoman, 38, 642, 566, accent, 'left');
+        drawPlayerNamePlate(rightName, rightRoman, 1316, 642, 566, accent, 'right');
+
+        const y = 794;
+        const bandH = 218;
         const grad = ctx.createLinearGradient(0, y, 0, y + bandH);
-        grad.addColorStop(0, alpha(accent, isPhotoMode ? 0.98 : 0.97));
-        grad.addColorStop(1, alpha(mix(accent, -0.15), isPhotoMode ? 0.98 : 0.99));
+        grad.addColorStop(0, alpha(accent, isPhotoMode ? 0.96 : 0.94));
+        grad.addColorStop(1, alpha(mix(accent, -0.17), 0.99));
         ctx.fillStyle = grad;
         ctx.fillRect(0, y, 1920, bandH);
 
-        ctx.fillStyle = isPhotoMode ? alpha('#ffffff', .17) : alpha('#ffffff', .13);
-        ctx.fillRect(0, y + 168, 1920, 74);
-
         ctx.save();
-        ctx.globalAlpha = 0.20;
+        ctx.globalAlpha = 0.18;
         for (let i = -1; i < 8; i++) {
           const xx = i * 268;
           ctx.beginPath();
@@ -642,7 +673,7 @@
         }
         ctx.restore();
 
-        const vsY = y + 92;
+        const vsY = y + 91;
         ctx.beginPath();
         ctx.arc(960, vsY, 70, 0, Math.PI * 2);
         ctx.fillStyle = '#fff';
@@ -650,28 +681,20 @@
         ctx.lineWidth = 8;
         ctx.strokeStyle = alpha(accent, 0.92);
         ctx.stroke();
-        drawImpactTextFit('VS', 960, vsY + 1, 100, 56, 42, accent, 'transparent', 'rgba(0,0,0,0.08)', 6, 1, 'center', FONT_LATIN, 900, 0);
+        ctx.font = `900 56px ${FONT_LATIN}`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = accent;
+        ctx.fillText('VS', 960, vsY + 1);
 
-        const leftPanelX = 22;
-        const rightPanelX = 1138;
-        const panelW = 760;
-        const nameCenterY = y + 74;
-        const romanCenterY = y + 196;
-
-        ctx.fillStyle = alpha('#000000', 0.08);
-        roundedRect(leftPanelX, y + 14, panelW, 140, 10);
-        ctx.fill();
-        roundedRect(rightPanelX, y + 14, panelW, 140, 10);
-        ctx.fill();
-
-        drawImpactTextFit(leftName, leftPanelX + panelW / 2, nameCenterY, 680, 112, 56, '#fff', alpha('#000000', 0.16), 'rgba(0,0,0,0.28)', 22, 8, 'center', FONT_JP, 900, 2);
-        drawImpactTextFit(rightName, rightPanelX + panelW / 2, nameCenterY, 680, 112, 56, '#fff', alpha('#000000', 0.16), 'rgba(0,0,0,0.28)', 22, 8, 'center', FONT_JP, 900, 2);
-        drawTextFit(leftRoman, leftPanelX + panelW / 2, romanCenterY, 700, 58, 28, '#fff', 'center', FONT_LATIN, 800);
-        drawTextFit(rightRoman, rightPanelX + panelW / 2, romanCenterY, 700, 58, 28, '#fff', 'center', FONT_LATIN, 800);
+        const leftShort = leftName || '選手名';
+        const rightShort = rightName || '選手名';
+        drawImpactTextFit(leftShort, 476, y + 91, 700, 88, 48, '#fff', 'transparent', 'rgba(0,0,0,0.25)', 16, 6, 'center', FONT_JP, 900, 0);
+        drawImpactTextFit(rightShort, 1444, y + 91, 700, 88, 48, '#fff', 'transparent', 'rgba(0,0,0,0.25)', 16, 6, 'center', FONT_JP, 900, 0);
 
         const footerGrad = ctx.createLinearGradient(0, 1012, 0, 1080);
-        footerGrad.addColorStop(0, 'rgba(255,255,255,0.92)');
-        footerGrad.addColorStop(1, 'rgba(255,255,255,0.96)');
+        footerGrad.addColorStop(0, 'rgba(255,255,255,0.94)');
+        footerGrad.addColorStop(1, 'rgba(255,255,255,0.98)');
         ctx.fillStyle = footerGrad;
         ctx.fillRect(0, 1012, 1920, 68);
         if (supplement) {
@@ -681,6 +704,7 @@
           drawTextFit(fallback, 960, 1047, 1740, 46, 28, alpha(accent,.80), 'center', FONT_JP, 800);
         }
       }
+
       function render() {
         const accent = SERIES[$('series').value] || '#6B0D2F';
         const photoMode = $('bgMode').value === 'photo';
