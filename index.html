@@ -75,12 +75,22 @@
       border: 1px solid var(--line); background: #fff; color: var(--ink); border-radius: 8px; padding: 6px 10px; cursor: pointer;
     }
     .hint { font-size: 11px; color: var(--muted); line-height: 1.55; margin-top: 4px; }
-    .actions { position: sticky; bottom: -24px; margin: 0 -24px -24px; padding: 15px 24px 24px; background: linear-gradient(transparent, #fff 20%); }
-    .download {
-      width: 100%; border: 0; border-radius: 12px; padding: 13px 16px; font-weight: 800; color: #fff; background: var(--accent); cursor: pointer;
+    .preview-download {
+      position: absolute;
+      top: 24px;
+      right: 24px;
+      z-index: 2;
+      border: 0;
+      border-radius: 999px;
+      padding: 10px 16px;
+      font-weight: 800;
+      color: #fff;
+      background: var(--accent);
+      cursor: pointer;
       box-shadow: 0 6px 18px color-mix(in srgb, var(--accent) 25%, transparent);
     }
     .preview-wrap {
+      position: relative;
       display: flex;
       flex-direction: column;
       min-width: 0;
@@ -112,7 +122,7 @@
       .controls { max-height: none; border-right: 0; border-bottom: 1px solid var(--line); }
       .preview-wrap { padding: 14px; }
       canvas { width: 100%; max-height: none; }
-      .actions { position: static; margin: 12px 0 0; padding: 0; background: none; }
+      .preview-download { top: 14px; right: 14px; padding: 9px 14px; }
     }
   </style>
 </head>
@@ -234,13 +244,10 @@
           <div class="hint">背景写真は16:9に自動トリミングされます。人物位置に合わせて左右・上下を調整できます。</div>
         </div>
       </section>
-
-      <div class="actions">
-        <button class="download" id="downloadBtn" type="button">PNGをダウンロード（1920×1080）</button>
-      </div>
     </aside>
 
     <main class="preview-wrap">
+      <button class="preview-download" id="downloadBtn" type="button">PNG保存</button>
       <div class="canvas-shell">
         <canvas id="canvas" width="1920" height="1080" aria-label="サムネイルプレビュー"></canvas>
       </div>
@@ -250,7 +257,7 @@
   <script>
     // GitHub Pages / browser cache対策。リリースごとにAPP_BUILDを更新する。
     (() => {
-      const APP_BUILD = '08';
+      const APP_BUILD = '09';
       const url = new URL(window.location.href);
       if (url.searchParams.get('v') !== APP_BUILD) {
         url.searchParams.set('v', APP_BUILD);
@@ -258,12 +265,12 @@
       }
     })();
   </script>
-  <script src="players.js?v=08"></script>
+  <script src="players.js?v=09"></script>
   <script>
     (() => {
       'use strict';
 
-      const APP_BUILD = '08';
+      const APP_BUILD = '09';
       console.info(`[JBS Thumbnail] build ${APP_BUILD}`);
 
       const SERIES = {
