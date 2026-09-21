@@ -116,9 +116,6 @@
 <body>
   <div class="app">
     <aside class="controls">
-      <h1>JBS YouTube サムネイル</h1>
-      <p class="lead">出力は常に1920×1080px。タイトル戦色・選手情報・全面写真を切り替えてPNG保存できます。</p>
-
       <section class="group">
         <div class="group-title">大会情報</div>
         <div class="field">
@@ -241,10 +238,6 @@
     </aside>
 
     <main class="preview-wrap">
-      <div class="preview-meta">
-        <span>プレビュー</span>
-        <span class="accent-chip"><span class="accent-dot"></span><span id="accentCode">#6B0D2F</span></span>
-      </div>
       <div class="canvas-shell">
         <canvas id="canvas" width="1920" height="1080" aria-label="サムネイルプレビュー"></canvas>
       </div>
@@ -573,30 +566,56 @@
           drawImpactTextFit('バックギャモン', 960, 531, 560, 58, 36, '#fff', 'transparent', 'rgba(0,0,0,0.12)', 10, 3, 'center', FONT_JP, 900, 0);
           drawImpactTextFit(stage, 960, 612, 700, 130, 68, mix(accent, -0.08), 'transparent', 'rgba(255,255,255,0.22)', 12, 0, 'center', FONT_JP, 900, 0);
         } else {
-          drawImpactTextFit(editionText, 960, titleYBase, 860, 92, 58, titleColor, accent, shadow, 28, 10, 'center', FONT_JP, 900, 6);
-          drawImpactTextFit(series, 960, 330, 860, 214, 118, titleColor, accent, shadow, 34, 12, 'center', FONT_JP, 900, 8);
+          const panelGrad = ctx.createLinearGradient(0, 90, 0, 690);
+          panelGrad.addColorStop(0, 'rgba(255,255,255,0.10)');
+          panelGrad.addColorStop(1, 'rgba(255,255,255,0.03)');
+          ctx.save();
+          ctx.shadowColor = 'rgba(0,0,0,.26)';
+          ctx.shadowBlur = 34;
+          ctx.shadowOffsetY = 10;
+          ctx.beginPath();
+          ctx.arc(960, 354, 374, 0, Math.PI * 2);
+          ctx.fillStyle = panelGrad;
+          ctx.fill();
+          ctx.restore();
 
           ctx.save();
-          ctx.strokeStyle = alpha('#ffffff', 0.96);
-          ctx.lineWidth = 6;
-          ctx.lineCap = 'round';
+          ctx.lineWidth = 8;
+          ctx.strokeStyle = alpha('#ffffff', 0.95);
           ctx.beginPath();
-          ctx.moveTo(618, 475);
-          ctx.lineTo(1302, 475);
+          ctx.arc(960, 354, 356, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.lineWidth = 4;
+          ctx.strokeStyle = alpha('#ffffff', 0.82);
+          ctx.beginPath();
+          ctx.arc(960, 354, 336, 0, Math.PI * 2);
           ctx.stroke();
           ctx.restore();
 
-          drawImpactTextFit('バックギャモン', 960, 554, 620, 104, 54, titleColor, accent, shadow, 28, 10, 'center', FONT_JP, 900, 7);
-          drawImpactTextFit(stage, 960, 664, 900, 154, 82, titleColor, accent, shadow, 32, 12, 'center', FONT_JP, 900, 8);
+          drawImpactTextFit(editionText, 960, titleYBase, 820, 104, 64, titleColor, accent, shadow, 30, 10, 'center', FONT_JP, 900, 6);
+          drawImpactTextFit(series, 960, 330, 760, 236, 126, titleColor, accent, shadow, 40, 13, 'center', FONT_JP, 900, 9);
+
+          ctx.save();
+          ctx.strokeStyle = alpha('#ffffff', 0.96);
+          ctx.lineWidth = 7;
+          ctx.lineCap = 'round';
+          ctx.beginPath();
+          ctx.moveTo(648, 486);
+          ctx.lineTo(1272, 486);
+          ctx.stroke();
+          ctx.restore();
+
+          drawImpactTextFit('バックギャモン', 960, 552, 620, 104, 54, titleColor, accent, shadow, 28, 10, 'center', FONT_JP, 900, 7);
+          drawImpactTextFit(stage, 960, 648, 820, 146, 78, titleColor, accent, shadow, 32, 12, 'center', FONT_JP, 900, 8);
         }
       }
       function drawNameBands(accent, isPhotoMode) {
         const y = 770;
         const bandH = 242;
-        const leftName = $('leftName').value.trim();
-        const rightName = $('rightName').value.trim();
-        const leftRoman = $('leftRoman').value.trim();
-        const rightRoman = $('rightRoman').value.trim();
+        const leftName = $('leftName').value.trim() || '選手名';
+        const rightName = $('rightName').value.trim() || '選手名';
+        const leftRoman = $('leftRoman').value.trim() || 'PLAYER NAME';
+        const rightRoman = $('rightRoman').value.trim() || 'PLAYER NAME';
         const supplement = $('supplement').value.trim();
 
         const grad = ctx.createLinearGradient(0, y, 0, y + bandH);
@@ -625,7 +644,7 @@
 
         const vsY = y + 92;
         ctx.beginPath();
-        ctx.arc(960, vsY, 72, 0, Math.PI * 2);
+        ctx.arc(960, vsY, 70, 0, Math.PI * 2);
         ctx.fillStyle = '#fff';
         ctx.fill();
         ctx.lineWidth = 8;
@@ -633,38 +652,22 @@
         ctx.stroke();
         drawImpactTextFit('VS', 960, vsY + 1, 100, 56, 42, accent, 'transparent', 'rgba(0,0,0,0.08)', 6, 1, 'center', FONT_LATIN, 900, 0);
 
-        const leftCenter = 420;
-        const rightCenter = 1500;
-        const nameY = y + 74;
-        const romanY = y + 198;
+        const leftPanelX = 22;
+        const rightPanelX = 1138;
+        const panelW = 760;
+        const nameCenterY = y + 74;
+        const romanCenterY = y + 196;
 
-        ctx.save();
-        ctx.beginPath();
-        ctx.rect(24, y + 6, 760, 162);
-        ctx.clip();
-        drawImpactTextFit(leftName, leftCenter, nameY, 710, 112, 58, '#fff', 'transparent', 'rgba(0,0,0,0.24)', 20, 8, 'center', FONT_JP, 900, 0);
-        ctx.restore();
+        ctx.fillStyle = alpha('#000000', 0.08);
+        roundedRect(leftPanelX, y + 14, panelW, 140, 10);
+        ctx.fill();
+        roundedRect(rightPanelX, y + 14, panelW, 140, 10);
+        ctx.fill();
 
-        ctx.save();
-        ctx.beginPath();
-        ctx.rect(1136, y + 6, 760, 162);
-        ctx.clip();
-        drawImpactTextFit(rightName, rightCenter, nameY, 710, 112, 58, '#fff', 'transparent', 'rgba(0,0,0,0.24)', 20, 8, 'center', FONT_JP, 900, 0);
-        ctx.restore();
-
-        ctx.save();
-        ctx.beginPath();
-        ctx.rect(28, y + 148, 748, 76);
-        ctx.clip();
-        drawTextFit(leftRoman, leftCenter, romanY, 700, 60, 30, '#fff', 'center', FONT_LATIN, 800);
-        ctx.restore();
-
-        ctx.save();
-        ctx.beginPath();
-        ctx.rect(1144, y + 148, 748, 76);
-        ctx.clip();
-        drawTextFit(rightRoman, rightCenter, romanY, 700, 60, 30, '#fff', 'center', FONT_LATIN, 800);
-        ctx.restore();
+        drawImpactTextFit(leftName, leftPanelX + panelW / 2, nameCenterY, 680, 112, 56, '#fff', alpha('#000000', 0.16), 'rgba(0,0,0,0.28)', 22, 8, 'center', FONT_JP, 900, 2);
+        drawImpactTextFit(rightName, rightPanelX + panelW / 2, nameCenterY, 680, 112, 56, '#fff', alpha('#000000', 0.16), 'rgba(0,0,0,0.28)', 22, 8, 'center', FONT_JP, 900, 2);
+        drawTextFit(leftRoman, leftPanelX + panelW / 2, romanCenterY, 700, 58, 28, '#fff', 'center', FONT_LATIN, 800);
+        drawTextFit(rightRoman, rightPanelX + panelW / 2, romanCenterY, 700, 58, 28, '#fff', 'center', FONT_LATIN, 800);
 
         const footerGrad = ctx.createLinearGradient(0, 1012, 0, 1080);
         footerGrad.addColorStop(0, 'rgba(255,255,255,0.92)');
@@ -682,7 +685,6 @@
         const accent = SERIES[$('series').value] || '#6B0D2F';
         const photoMode = $('bgMode').value === 'photo';
         document.documentElement.style.setProperty('--accent', accent);
-        $('accentCode').textContent = accent.toUpperCase();
         $('photoControls').classList.toggle('hidden', !photoMode);
 
         ctx.clearRect(0, 0, 1920, 1080);
