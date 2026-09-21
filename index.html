@@ -338,43 +338,162 @@
         ctx.fillText(text, x, y);
         return size;
       }
+      function drawImpactTextFit(text, x, y, maxWidth, startSize, minSize, fill, stroke, shadowColor, shadowBlur, shadowY, align = 'center', family = FONT_JP, weight = 900, strokeWidth = 0) {
+        const size = fitText(text, maxWidth, startSize, minSize, family, weight);
+        ctx.save();
+        ctx.font = `${weight} ${size}px ${family}`;
+        ctx.textAlign = align;
+        ctx.textBaseline = 'middle';
+        if (shadowBlur) {
+          ctx.shadowColor = shadowColor;
+          ctx.shadowBlur = shadowBlur;
+          ctx.shadowOffsetY = shadowY || 0;
+        }
+        if (strokeWidth > 0) {
+          ctx.lineJoin = 'round';
+          ctx.miterLimit = 2;
+          ctx.lineWidth = strokeWidth;
+          ctx.strokeStyle = stroke;
+          ctx.strokeText(text, x, y);
+        }
+        ctx.fillStyle = fill;
+        ctx.fillText(text, x, y);
+        ctx.restore();
+        return size;
+      }
       function drawBackgroundPattern(accent) {
         const grad = ctx.createLinearGradient(0, 0, 1920, 1080);
-        grad.addColorStop(0, '#f7f8fa');
-        grad.addColorStop(1, '#eceff3');
+        grad.addColorStop(0, mix(accent, -0.18));
+        grad.addColorStop(0.55, accent);
+        grad.addColorStop(1, mix(accent, -0.06));
         ctx.fillStyle = grad;
         ctx.fillRect(0, 0, 1920, 1080);
 
-        // バックギャモンのポイントを抽象化した背景
         ctx.save();
-        ctx.globalAlpha = 0.12;
-        const top = -90, base = 640, startX = -150, pointW = 210;
-        for (let i = 0; i < 11; i++) {
-          const x = startX + i * pointW;
+        ctx.globalAlpha = 0.9;
+        const stripeW = 278;
+        for (let i = -2; i < 7; i++) {
+          const x = i * stripeW;
           ctx.beginPath();
-          ctx.moveTo(x, top);
-          ctx.lineTo(x + pointW * 0.72, top);
-          ctx.lineTo(x + pointW * 0.36, base);
+          ctx.moveTo(x, 0);
+          ctx.lineTo(x + stripeW, 0);
+          ctx.lineTo(x + stripeW - 180, 1080);
+          ctx.lineTo(x - 180, 1080);
           ctx.closePath();
-          ctx.fillStyle = i % 2 ? accent : '#95a0ae';
+          ctx.fillStyle = i % 2 === 0 ? alpha('#ffffff', 0.06) : alpha('#000000', 0.06);
           ctx.fill();
         }
-        ctx.globalAlpha = 0.07;
-        for (let i = 0; i < 7; i++) {
+
+        ctx.globalAlpha = 0.88;
+        const pointTop = -40;
+        const pointBottom = 362;
+        const pointW = 150;
+        const gap = 7;
+        for (let i = 0; i < 6; i++) {
+          const x = 36 + i * (pointW + gap);
           ctx.beginPath();
-          ctx.arc(1550 + (i % 3) * 115, 100 + Math.floor(i / 3) * 110, 64, 0, Math.PI * 2);
-          ctx.fillStyle = i % 2 ? accent : '#465367';
+          ctx.moveTo(x, pointTop);
+          ctx.lineTo(x + pointW, pointTop);
+          ctx.lineTo(x + pointW / 2, pointBottom);
+          ctx.closePath();
+          ctx.fillStyle = '#ffffff';
           ctx.fill();
         }
+        for (let i = 0; i < 6; i++) {
+          const x = 1036 + i * (pointW + gap);
+          ctx.beginPath();
+          ctx.moveTo(x, 1080 - pointTop);
+          ctx.lineTo(x + pointW, 1080 - pointTop);
+          ctx.lineTo(x + pointW / 2, 1080 - pointBottom);
+          ctx.closePath();
+          ctx.fillStyle = '#ffffff';
+          ctx.fill();
+        }
+
+        ctx.lineWidth = 6;
+        ctx.strokeStyle = alpha('#ffffff', 0.95);
+        ctx.beginPath();
+        ctx.arc(960, 352, 344, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.lineWidth = 12;
+        ctx.strokeStyle = alpha('#ffffff', 0.85);
+        ctx.beginPath();
+        ctx.arc(960, 352, 374, 0, Math.PI * 2);
+        ctx.stroke();
+
+        const checkerPositions = [
+          [110, 805, 64], [155, 850, 64],
+          [1608, 102, 56], [1732, 168, 56], [1636, 290, 56], [1756, 356, 56]
+        ];
+        checkerPositions.forEach(([x, y, r], idx) => {
+          ctx.beginPath();
+          ctx.arc(x, y, r, 0, Math.PI * 2);
+          ctx.fillStyle = '#ffffff';
+          ctx.fill();
+          ctx.lineWidth = idx < 2 ? 8 : 0;
+          if (idx < 2) {
+            ctx.strokeStyle = accent;
+            ctx.stroke();
+          }
+        });
+
+        function die(x, y, size, pips) {
+          roundedRect(x, y, size, size, 18);
+          ctx.fillStyle = '#ffffff';
+          ctx.fill();
+          ctx.fillStyle = accent;
+          const dotR = size * 0.08;
+          const pos = {
+            c: [x + size/2, y + size/2],
+            tl: [x + size*0.25, y + size*0.25],
+            tr: [x + size*0.75, y + size*0.25],
+            ml: [x + size*0.25, y + size*0.5],
+            mr: [x + size*0.75, y + size*0.5],
+            bl: [x + size*0.25, y + size*0.75],
+            br: [x + size*0.75, y + size*0.75],
+          };
+          const map = {
+            1: ['c'],
+            2: ['tl','br'],
+            3: ['tl','c','br'],
+            4: ['tl','tr','bl','br'],
+            5: ['tl','tr','c','bl','br'],
+            6: ['tl','tr','ml','mr','bl','br']
+          };
+          (map[pips] || []).forEach(key => {
+            ctx.beginPath();
+            ctx.arc(pos[key][0], pos[key][1], dotR, 0, Math.PI * 2);
+            ctx.fill();
+          });
+        }
+        die(1518, 36, 120, 4);
+        die(1668, 202, 120, 5);
+
         ctx.restore();
 
-        ctx.fillStyle = 'rgba(255,255,255,.52)';
+        const v = ctx.createLinearGradient(0, 0, 0, 1080);
+        v.addColorStop(0, 'rgba(0,0,0,0.08)');
+        v.addColorStop(0.46, 'rgba(0,0,0,0.00)');
+        v.addColorStop(1, 'rgba(0,0,0,0.24)');
+        ctx.fillStyle = v;
         ctx.fillRect(0, 0, 1920, 1080);
       }
-      function drawPortraitFrame(img, x, y, size, accent) {
+      function drawPortraitFrame(img, x, y, size, accent, side = 'left') {
+        const pad = 10;
         ctx.save();
+        ctx.shadowColor = 'rgba(0,0,0,.22)';
+        ctx.shadowBlur = 26;
+        ctx.shadowOffsetY = 10;
+        ctx.fillStyle = alpha('#000000', 0.18);
+        roundedRect(x - 14, y - 14, size + 28, size + 28, 12);
+        ctx.fill();
+        ctx.shadowColor = 'transparent';
+        ctx.fillStyle = '#fff';
+        roundedRect(x - 10, y - 10, size + 20, size + 20, 8);
+        ctx.fill();
         ctx.fillStyle = accent;
-        ctx.fillRect(x - 9, y - 9, size + 18, size + 18);
+        roundedRect(x - pad, y - pad, size + pad * 2, size + pad * 2, 6);
+        ctx.fill();
         ctx.fillStyle = '#fff';
         ctx.fillRect(x, y, size, size);
         if (img && img.naturalWidth) {
@@ -388,6 +507,20 @@
           ctx.font = `700 34px ${FONT_JP}`;
           ctx.fillText('PHOTO', x + size/2, y + size/2);
         }
+        const edgeX = side === 'left' ? x + size + 10 : x - 10;
+        ctx.fillStyle = alpha('#ffffff', 0.94);
+        ctx.beginPath();
+        if (side === 'left') {
+          ctx.moveTo(edgeX, y + 42);
+          ctx.lineTo(edgeX + 26, y + 72);
+          ctx.lineTo(edgeX, y + 102);
+        } else {
+          ctx.moveTo(edgeX, y + 42);
+          ctx.lineTo(edgeX - 26, y + 72);
+          ctx.lineTo(edgeX, y + 102);
+        }
+        ctx.closePath();
+        ctx.fill();
         ctx.restore();
       }
       function drawCenterTitle(accent, isPhotoMode) {
@@ -396,65 +529,124 @@
         const unit = $('editionUnit').value;
         const stage = $('stage').value.trim() || '決勝';
         const editionText = `JBS 第${edition}${unit}`;
+        const titleYBase = isPhotoMode ? 152 : 158;
+        const titleColor = '#ffffff';
+        const shadow = 'rgba(0,0,0,0.35)';
 
         if (isPhotoMode) {
+          const panelGrad = ctx.createLinearGradient(0, 90, 0, 660);
+          panelGrad.addColorStop(0, 'rgba(255,255,255,0.90)');
+          panelGrad.addColorStop(1, 'rgba(255,255,255,0.76)');
           ctx.save();
-          ctx.shadowColor = 'rgba(0,0,0,.20)';
-          ctx.shadowBlur = 28;
-          ctx.shadowOffsetY = 8;
-          roundedRect(545, 78, 830, 560, 2);
-          ctx.fillStyle = 'rgba(255,255,255,.86)';
+          ctx.shadowColor = 'rgba(0,0,0,.30)';
+          ctx.shadowBlur = 34;
+          ctx.shadowOffsetY = 10;
+          roundedRect(455, 62, 1010, 618, 4);
+          ctx.fillStyle = panelGrad;
           ctx.fill();
           ctx.restore();
 
-          drawTextFit(editionText, 960, 158, 650, 66, 42, accent, 'center', FONT_JP, 800);
-          drawTextFit(series, 960, 292, 700, 150, 76, accent, 'center', FONT_JP, 900);
+          ctx.save();
+          ctx.lineWidth = 6;
+          ctx.strokeStyle = alpha(accent, 0.82);
+          ctx.beginPath();
+          ctx.arc(960, 374, 342, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.restore();
+
+          drawImpactTextFit(editionText, 960, titleYBase, 860, 84, 54, accent, 'transparent', 'rgba(255,255,255,0)', 0, 0, 'center', FONT_JP, 900, 0);
+          drawImpactTextFit(series, 960, 310, 920, 196, 100, accent, alpha('#ffffff', 0.80), 'rgba(0,0,0,0.18)', 22, 8, 'center', FONT_JP, 900, 5);
+
+          ctx.save();
+          ctx.strokeStyle = accent;
+          ctx.lineWidth = 6;
+          ctx.lineCap = 'round';
+          ctx.beginPath();
+          ctx.moveTo(628, 455);
+          ctx.lineTo(1292, 455);
+          ctx.stroke();
+          ctx.restore();
+
           ctx.fillStyle = accent;
-          ctx.fillRect(650, 388, 620, 82);
-          drawTextFit('バックギャモン', 960, 430, 560, 48, 30, '#fff', 'center', FONT_JP, 800);
-          drawTextFit(stage, 960, 550, 620, 98, 54, mix(accent, -0.15), 'center', FONT_JP, 900);
+          roundedRect(642, 484, 636, 94, 2);
+          ctx.fill();
+          drawImpactTextFit('バックギャモン', 960, 531, 560, 58, 36, '#fff', 'transparent', 'rgba(0,0,0,0.12)', 10, 3, 'center', FONT_JP, 900, 0);
+          drawImpactTextFit(stage, 960, 620, 700, 136, 70, mix(accent, -0.08), 'transparent', 'rgba(255,255,255,0.22)', 12, 0, 'center', FONT_JP, 900, 0);
         } else {
-          drawTextFit(editionText, 960, 138, 650, 62, 40, accent, 'center', FONT_JP, 800);
-          drawTextFit(series, 960, 295, 710, 154, 74, accent, 'center', FONT_JP, 900);
-          ctx.fillStyle = accent;
-          ctx.fillRect(660, 402, 600, 78);
-          drawTextFit('バックギャモン', 960, 441, 550, 46, 30, '#fff', 'center', FONT_JP, 800);
-          drawTextFit(stage, 960, 575, 620, 104, 54, mix(accent, -0.12), 'center', FONT_JP, 900);
+          drawImpactTextFit(editionText, 960, titleYBase, 860, 92, 58, titleColor, accent, shadow, 28, 10, 'center', FONT_JP, 900, 6);
+          drawImpactTextFit(series, 960, 330, 860, 214, 118, titleColor, accent, shadow, 34, 12, 'center', FONT_JP, 900, 8);
+
+          ctx.save();
+          ctx.strokeStyle = alpha('#ffffff', 0.96);
+          ctx.lineWidth = 6;
+          ctx.lineCap = 'round';
+          ctx.beginPath();
+          ctx.moveTo(618, 475);
+          ctx.lineTo(1302, 475);
+          ctx.stroke();
+          ctx.restore();
+
+          drawImpactTextFit('バックギャモン', 960, 554, 620, 104, 54, titleColor, accent, shadow, 28, 10, 'center', FONT_JP, 900, 7);
+          drawImpactTextFit(stage, 960, 680, 900, 166, 86, titleColor, accent, shadow, 32, 12, 'center', FONT_JP, 900, 8);
         }
       }
       function drawNameBands(accent, isPhotoMode) {
-        const y = 750;
-        const bandH = 248;
+        const y = 776;
+        const bandH = 236;
         const leftName = $('leftName').value.trim();
         const rightName = $('rightName').value.trim();
         const leftRoman = $('leftRoman').value.trim();
         const rightRoman = $('rightRoman').value.trim();
         const supplement = $('supplement').value.trim();
 
-        ctx.fillStyle = isPhotoMode ? alpha(accent, .96) : accent;
+        const grad = ctx.createLinearGradient(0, y, 0, y + bandH);
+        grad.addColorStop(0, alpha(accent, isPhotoMode ? 0.98 : 0.97));
+        grad.addColorStop(1, alpha(mix(accent, -0.15), isPhotoMode ? 0.98 : 0.99));
+        ctx.fillStyle = grad;
         ctx.fillRect(0, y, 1920, bandH);
-        ctx.fillStyle = isPhotoMode ? 'rgba(255,255,255,.14)' : mix(accent, 0.18);
-        ctx.fillRect(0, y + 172, 1920, 76);
 
-        // VS circle
+        ctx.fillStyle = isPhotoMode ? alpha('#ffffff', .17) : alpha('#ffffff', .13);
+        ctx.fillRect(0, y + 165, 1920, 71);
+
+        ctx.save();
+        ctx.globalAlpha = 0.22;
+        for (let i = -1; i < 8; i++) {
+          const xx = i * 268;
+          ctx.beginPath();
+          ctx.moveTo(xx, y);
+          ctx.lineTo(xx + 170, y);
+          ctx.lineTo(xx + 70, y + bandH);
+          ctx.lineTo(xx - 100, y + bandH);
+          ctx.closePath();
+          ctx.fillStyle = '#000';
+          ctx.fill();
+        }
+        ctx.restore();
+
         ctx.beginPath();
-        ctx.arc(960, y + 88, 68, 0, Math.PI * 2);
+        ctx.arc(960, y + 89, 72, 0, Math.PI * 2);
         ctx.fillStyle = '#fff';
         ctx.fill();
-        drawTextFit('VS', 960, y + 90, 100, 52, 40, accent, 'center', FONT_LATIN, 900);
+        ctx.lineWidth = 8;
+        ctx.strokeStyle = alpha(accent, 0.92);
+        ctx.stroke();
+        drawImpactTextFit('VS', 960, y + 90, 100, 56, 42, accent, 'transparent', 'rgba(0,0,0,0.08)', 6, 1, 'center', FONT_LATIN, 900, 0);
 
-        drawTextFit(leftName, 455, y + 78, 760, 102, 52, '#fff', 'center', FONT_JP, 900);
-        drawTextFit(rightName, 1465, y + 78, 760, 102, 52, '#fff', 'center', FONT_JP, 900);
-        drawTextFit(leftRoman, 455, y + 199, 790, 54, 30, '#fff', 'center', FONT_LATIN, 700);
-        drawTextFit(rightRoman, 1465, y + 199, 790, 54, 30, '#fff', 'center', FONT_LATIN, 700);
+        drawImpactTextFit(leftName, 442, y + 76, 748, 118, 64, '#fff', 'transparent', 'rgba(0,0,0,0.22)', 20, 8, 'center', FONT_JP, 900, 0);
+        drawImpactTextFit(rightName, 1478, y + 76, 748, 118, 64, '#fff', 'transparent', 'rgba(0,0,0,0.22)', 20, 8, 'center', FONT_JP, 900, 0);
+        drawTextFit(leftRoman, 442, y + 198, 790, 64, 34, '#fff', 'center', FONT_LATIN, 800);
+        drawTextFit(rightRoman, 1478, y + 198, 790, 64, 34, '#fff', 'center', FONT_LATIN, 800);
 
-        ctx.fillStyle = isPhotoMode ? 'rgba(255,255,255,.92)' : '#f6f7f9';
-        ctx.fillRect(0, 998, 1920, 82);
+        const footerGrad = ctx.createLinearGradient(0, 1012, 0, 1080);
+        footerGrad.addColorStop(0, 'rgba(255,255,255,0.92)');
+        footerGrad.addColorStop(1, 'rgba(255,255,255,0.96)');
+        ctx.fillStyle = footerGrad;
+        ctx.fillRect(0, 1012, 1920, 68);
         if (supplement) {
-          drawTextFit(supplement, 960, 1039, 1740, 48, 28, accent, 'center', FONT_JP, 800);
+          drawImpactTextFit(supplement, 960, 1047, 1760, 56, 32, accent, 'transparent', 'rgba(255,255,255,0.15)', 8, 0, 'center', FONT_JP, 900, 0);
         } else {
           const fallback = `${$('series').value} ${$('stage').value.trim()}`;
-          drawTextFit(fallback, 960, 1039, 1740, 42, 26, alpha(accent,.78), 'center', FONT_JP, 700);
+          drawTextFit(fallback, 960, 1047, 1740, 46, 28, alpha(accent,.80), 'center', FONT_JP, 800);
         }
       }
       function render() {
@@ -468,22 +660,26 @@
         if (photoMode && state.bgImage && state.bgImage.naturalWidth) {
           drawCover(state.bgImage, 0, 0, 1920, 1080, Number($('bgX').value), Number($('bgY').value));
           const shade = Number($('bgShade').value) / 100;
-          ctx.fillStyle = `rgba(0,0,0,${shade})`;
+          const overlay = ctx.createLinearGradient(0, 0, 0, 1080);
+          overlay.addColorStop(0, `rgba(0,0,0,${shade * 0.82})`);
+          overlay.addColorStop(0.58, `rgba(0,0,0,${shade * 0.48})`);
+          overlay.addColorStop(1, `rgba(0,0,0,${Math.min(0.9, shade + 0.18)})`);
+          ctx.fillStyle = overlay;
           ctx.fillRect(0, 0, 1920, 1080);
         } else {
           drawBackgroundPattern(accent);
           if (!photoMode) {
-            drawPortraitFrame(state.leftImage, 72, 140, 512, accent);
-            drawPortraitFrame(state.rightImage, 1336, 140, 512, accent);
+            drawPortraitFrame(state.leftImage, 56, 162, 504, accent, 'left');
+            drawPortraitFrame(state.rightImage, 1360, 162, 504, accent, 'right');
           } else {
-            // 背景写真未選択時の案内用プレースホルダー
-            ctx.fillStyle = '#dfe3e8';
+            drawBackgroundPattern(accent);
+            ctx.fillStyle = 'rgba(0,0,0,0.18)';
             ctx.fillRect(0, 0, 1920, 1080);
-            ctx.fillStyle = '#778090';
+            ctx.fillStyle = '#ffffff';
             ctx.font = `800 54px ${FONT_JP}`;
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
-            ctx.fillText('全面背景写真を選択してください', 960, 700);
+            ctx.fillText('全面背景写真を選択してください', 960, 710);
           }
         }
 
