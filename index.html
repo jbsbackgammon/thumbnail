@@ -1,0 +1,602 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>JBS YouTube Thumbnail Maker</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #172033;
+      --muted: #657089;
+      --line: #dfe3eb;
+      --panel: #ffffff;
+      --bg: #f4f6f9;
+      --accent: #6B0D2F;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; }
+    body {
+      font-family: "Noto Sans JP", "Yu Gothic", "YuGothic", "Hiragino Sans", "Meiryo", sans-serif;
+      color: var(--ink);
+      background: var(--bg);
+    }
+    button, input, select { font: inherit; }
+    .app {
+      min-height: 100vh;
+      display: grid;
+      grid-template-columns: 390px minmax(0, 1fr);
+    }
+    .controls {
+      padding: 24px;
+      background: var(--panel);
+      border-right: 1px solid var(--line);
+      overflow: auto;
+      max-height: 100vh;
+    }
+    h1 { font-size: 22px; margin: 0 0 4px; }
+    .lead { margin: 0 0 22px; color: var(--muted); font-size: 13px; line-height: 1.6; }
+    .group {
+      padding: 16px 0;
+      border-top: 1px solid var(--line);
+    }
+    .group:first-of-type { border-top: 0; padding-top: 0; }
+    .group-title { font-size: 14px; font-weight: 800; margin-bottom: 10px; }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .field { margin-bottom: 10px; }
+    label { display: block; font-size: 12px; font-weight: 700; color: #4b556b; margin-bottom: 5px; }
+    input, select {
+      width: 100%;
+      min-height: 40px;
+      border: 1px solid #cfd5df;
+      border-radius: 9px;
+      padding: 8px 10px;
+      background: #fff;
+      color: var(--ink);
+      outline: none;
+    }
+    input:focus, select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 13%, transparent); }
+    input[type="file"] { padding: 7px; font-size: 12px; }
+    input[type="range"] { min-height: 28px; padding: 0; }
+    .player-card {
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: #fafbfc;
+      margin-bottom: 10px;
+    }
+    .player-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+    .side-tag { font-size: 12px; font-weight: 800; letter-spacing: .05em; }
+    .swap {
+      border: 1px solid var(--line); background: #fff; color: var(--ink); border-radius: 8px; padding: 6px 10px; cursor: pointer;
+    }
+    .hint { font-size: 11px; color: var(--muted); line-height: 1.55; margin-top: 4px; }
+    .actions { position: sticky; bottom: -24px; margin: 0 -24px -24px; padding: 15px 24px 24px; background: linear-gradient(transparent, #fff 20%); }
+    .download {
+      width: 100%; border: 0; border-radius: 12px; padding: 13px 16px; font-weight: 800; color: #fff; background: var(--accent); cursor: pointer;
+      box-shadow: 0 6px 18px color-mix(in srgb, var(--accent) 25%, transparent);
+    }
+    .preview-wrap {
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      padding: 24px;
+      gap: 12px;
+    }
+    .preview-meta { display: flex; justify-content: space-between; align-items: center; gap: 12px; color: var(--muted); font-size: 12px; }
+    .canvas-shell {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 0;
+    }
+    canvas {
+      display: block;
+      width: min(100%, calc((100vh - 100px) * 16 / 9));
+      height: auto;
+      max-height: calc(100vh - 100px);
+      background: #fff;
+      box-shadow: 0 12px 40px rgba(28, 39, 60, .16);
+      border-radius: 4px;
+    }
+    .accent-chip { display:inline-flex; align-items:center; gap:7px; }
+    .accent-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--accent); }
+    .hidden { display: none !important; }
+    @media (max-width: 980px) {
+      .app { grid-template-columns: 1fr; }
+      .controls { max-height: none; border-right: 0; border-bottom: 1px solid var(--line); }
+      .preview-wrap { padding: 14px; }
+      canvas { width: 100%; max-height: none; }
+      .actions { position: static; margin: 12px 0 0; padding: 0; background: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="controls">
+      <h1>JBS YouTube サムネイル</h1>
+      <p class="lead">出力は常に1920×1080px。タイトル戦色・選手情報・全面写真を切り替えてPNG保存できます。</p>
+
+      <section class="group">
+        <div class="group-title">大会情報</div>
+        <div class="field">
+          <label for="series">タイトル戦</label>
+          <select id="series"></select>
+        </div>
+        <div class="row">
+          <div class="field">
+            <label for="edition">回数</label>
+            <input id="edition" type="number" min="1" max="999" value="32" />
+          </div>
+          <div class="field">
+            <label for="editionUnit">単位</label>
+            <select id="editionUnit">
+              <option value="期" selected>期</option>
+              <option value="回">回</option>
+            </select>
+          </div>
+        </div>
+        <div class="field">
+          <label for="stage">試合名</label>
+          <input id="stage" list="stageList" value="決勝" placeholder="例：決勝 / 準決勝 / 準々決勝" />
+          <datalist id="stageList">
+            <option value="決勝"></option>
+            <option value="準決勝"></option>
+            <option value="準々決勝"></option>
+            <option value="本戦1回戦"></option>
+            <option value="本戦2回戦"></option>
+            <option value="本戦3回戦"></option>
+          </datalist>
+        </div>
+        <div class="field">
+          <label for="supplement">補足情報</label>
+          <input id="supplement" value="" placeholder="例：愛知県・愛三文化会館 / LIVE配信" />
+        </div>
+      </section>
+
+      <section class="group">
+        <div class="player-head">
+          <div class="group-title" style="margin:0">選手</div>
+          <button class="swap" id="swapPlayers" type="button">左右を入替</button>
+        </div>
+
+        <div class="player-card">
+          <div class="side-tag">LEFT PLAYER</div>
+          <div class="field">
+            <label for="leftPlayer">選手マスター</label>
+            <select id="leftPlayer"></select>
+          </div>
+          <div class="field">
+            <label for="leftName">日本語名</label>
+            <input id="leftName" />
+          </div>
+          <div class="field">
+            <label for="leftRoman">ローマ字</label>
+            <input id="leftRoman" />
+          </div>
+          <div class="field">
+            <label for="leftPhotoOverride">写真を一時差替</label>
+            <input id="leftPhotoOverride" type="file" accept="image/*" />
+          </div>
+        </div>
+
+        <div class="player-card">
+          <div class="side-tag">RIGHT PLAYER</div>
+          <div class="field">
+            <label for="rightPlayer">選手マスター</label>
+            <select id="rightPlayer"></select>
+          </div>
+          <div class="field">
+            <label for="rightName">日本語名</label>
+            <input id="rightName" />
+          </div>
+          <div class="field">
+            <label for="rightRoman">ローマ字</label>
+            <input id="rightRoman" />
+          </div>
+          <div class="field">
+            <label for="rightPhotoOverride">写真を一時差替</label>
+            <input id="rightPhotoOverride" type="file" accept="image/*" />
+          </div>
+        </div>
+      </section>
+
+      <section class="group">
+        <div class="group-title">背景</div>
+        <div class="field">
+          <label for="bgMode">背景モード</label>
+          <select id="bgMode">
+            <option value="standard">通常（選手写真2枚）</option>
+            <option value="photo">全面写真（決勝向け）</option>
+          </select>
+        </div>
+        <div id="photoControls" class="hidden">
+          <div class="field">
+            <label for="bgPhoto">全面背景写真</label>
+            <input id="bgPhoto" type="file" accept="image/*" />
+          </div>
+          <div class="row">
+            <div class="field">
+              <label for="bgX">左右位置</label>
+              <input id="bgX" type="range" min="0" max="100" value="50" />
+            </div>
+            <div class="field">
+              <label for="bgY">上下位置</label>
+              <input id="bgY" type="range" min="0" max="100" value="50" />
+            </div>
+          </div>
+          <div class="field">
+            <label for="bgShade">暗さ</label>
+            <input id="bgShade" type="range" min="0" max="70" value="22" />
+          </div>
+          <div class="hint">背景写真は16:9に自動トリミングされます。人物位置に合わせて左右・上下を調整できます。</div>
+        </div>
+      </section>
+
+      <div class="actions">
+        <button class="download" id="downloadBtn" type="button">PNGをダウンロード（1920×1080）</button>
+      </div>
+    </aside>
+
+    <main class="preview-wrap">
+      <div class="preview-meta">
+        <span>プレビュー</span>
+        <span class="accent-chip"><span class="accent-dot"></span><span id="accentCode">#6B0D2F</span></span>
+      </div>
+      <div class="canvas-shell">
+        <canvas id="canvas" width="1920" height="1080" aria-label="サムネイルプレビュー"></canvas>
+      </div>
+    </main>
+  </div>
+
+  <script src="players.js"></script>
+  <script>
+    (() => {
+      'use strict';
+
+      const SERIES = {
+        '日本選手権': '#3C3C3C',
+        '盤聖戦': '#6B0D2F',
+        '名人戦': '#6B670D',
+        '王位戦': '#0D6B2F',
+        '賽王戦': '#0D236B',
+        '棋聖戦': '#6B230D',
+        '女王戦': '#6B0D5B',
+        '新鋭戦': '#0D676B'
+      };
+
+      const players = Array.isArray(window.JBS_PLAYERS) ? window.JBS_PLAYERS : [];
+      const $ = (id) => document.getElementById(id);
+      const canvas = $('canvas');
+      const ctx = canvas.getContext('2d');
+      const FONT_JP = '"Noto Sans JP", "Yu Gothic", "YuGothic", "Hiragino Sans", "Meiryo", sans-serif';
+      const FONT_LATIN = 'Arial, Helvetica, sans-serif';
+
+      const state = {
+        leftImage: null,
+        rightImage: null,
+        bgImage: null,
+        leftOverride: false,
+        rightOverride: false
+      };
+
+      function hexToRgb(hex) {
+        const v = hex.replace('#', '');
+        return {
+          r: parseInt(v.slice(0,2), 16),
+          g: parseInt(v.slice(2,4), 16),
+          b: parseInt(v.slice(4,6), 16)
+        };
+      }
+      function alpha(hex, a) {
+        const {r,g,b} = hexToRgb(hex);
+        return `rgba(${r},${g},${b},${a})`;
+      }
+      function mix(hex, amount = 0.2) {
+        const {r,g,b} = hexToRgb(hex);
+        const t = amount >= 0 ? 255 : 0;
+        const p = Math.abs(amount);
+        const c = (x) => Math.round(x + (t - x) * p);
+        return `rgb(${c(r)},${c(g)},${c(b)})`;
+      }
+      function roundedRect(x, y, w, h, r) {
+        const rr = Math.min(r, w / 2, h / 2);
+        ctx.beginPath();
+        ctx.moveTo(x + rr, y);
+        ctx.arcTo(x + w, y, x + w, y + h, rr);
+        ctx.arcTo(x + w, y + h, x, y + h, rr);
+        ctx.arcTo(x, y + h, x, y, rr);
+        ctx.arcTo(x, y, x + w, y, rr);
+        ctx.closePath();
+      }
+      function drawCover(img, x, y, w, h, posX = 50, posY = 50) {
+        if (!img || !img.naturalWidth) return;
+        const iw = img.naturalWidth, ih = img.naturalHeight;
+        const scale = Math.max(w / iw, h / ih);
+        const sw = w / scale, sh = h / scale;
+        const sx = Math.max(0, Math.min(iw - sw, (iw - sw) * (posX / 100)));
+        const sy = Math.max(0, Math.min(ih - sh, (ih - sh) * (posY / 100)));
+        ctx.drawImage(img, sx, sy, sw, sh, x, y, w, h);
+      }
+      function fitText(text, maxWidth, startSize, minSize, family = FONT_JP, weight = 800) {
+        let size = startSize;
+        while (size > minSize) {
+          ctx.font = `${weight} ${size}px ${family}`;
+          if (ctx.measureText(text).width <= maxWidth) break;
+          size -= 2;
+        }
+        return size;
+      }
+      function drawTextFit(text, x, y, maxWidth, startSize, minSize, color, align = 'center', family = FONT_JP, weight = 800) {
+        const size = fitText(text, maxWidth, startSize, minSize, family, weight);
+        ctx.font = `${weight} ${size}px ${family}`;
+        ctx.fillStyle = color;
+        ctx.textAlign = align;
+        ctx.textBaseline = 'middle';
+        ctx.fillText(text, x, y);
+        return size;
+      }
+      function drawBackgroundPattern(accent) {
+        const grad = ctx.createLinearGradient(0, 0, 1920, 1080);
+        grad.addColorStop(0, '#f7f8fa');
+        grad.addColorStop(1, '#eceff3');
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, 1920, 1080);
+
+        // バックギャモンのポイントを抽象化した背景
+        ctx.save();
+        ctx.globalAlpha = 0.12;
+        const top = -90, base = 640, startX = -150, pointW = 210;
+        for (let i = 0; i < 11; i++) {
+          const x = startX + i * pointW;
+          ctx.beginPath();
+          ctx.moveTo(x, top);
+          ctx.lineTo(x + pointW * 0.72, top);
+          ctx.lineTo(x + pointW * 0.36, base);
+          ctx.closePath();
+          ctx.fillStyle = i % 2 ? accent : '#95a0ae';
+          ctx.fill();
+        }
+        ctx.globalAlpha = 0.07;
+        for (let i = 0; i < 7; i++) {
+          ctx.beginPath();
+          ctx.arc(1550 + (i % 3) * 115, 100 + Math.floor(i / 3) * 110, 64, 0, Math.PI * 2);
+          ctx.fillStyle = i % 2 ? accent : '#465367';
+          ctx.fill();
+        }
+        ctx.restore();
+
+        ctx.fillStyle = 'rgba(255,255,255,.52)';
+        ctx.fillRect(0, 0, 1920, 1080);
+      }
+      function drawPortraitFrame(img, x, y, size, accent) {
+        ctx.save();
+        ctx.fillStyle = accent;
+        ctx.fillRect(x - 9, y - 9, size + 18, size + 18);
+        ctx.fillStyle = '#fff';
+        ctx.fillRect(x, y, size, size);
+        if (img && img.naturalWidth) {
+          drawCover(img, x, y, size, size, 50, 50);
+        } else {
+          ctx.fillStyle = '#e8ebef';
+          ctx.fillRect(x, y, size, size);
+          ctx.fillStyle = '#8892a0';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.font = `700 34px ${FONT_JP}`;
+          ctx.fillText('PHOTO', x + size/2, y + size/2);
+        }
+        ctx.restore();
+      }
+      function drawCenterTitle(accent, isPhotoMode) {
+        const series = $('series').value;
+        const edition = $('edition').value || '';
+        const unit = $('editionUnit').value;
+        const stage = $('stage').value.trim() || '決勝';
+        const editionText = `JBS 第${edition}${unit}`;
+
+        if (isPhotoMode) {
+          ctx.save();
+          ctx.shadowColor = 'rgba(0,0,0,.20)';
+          ctx.shadowBlur = 28;
+          ctx.shadowOffsetY = 8;
+          roundedRect(545, 78, 830, 560, 2);
+          ctx.fillStyle = 'rgba(255,255,255,.86)';
+          ctx.fill();
+          ctx.restore();
+
+          drawTextFit(editionText, 960, 158, 650, 66, 42, accent, 'center', FONT_JP, 800);
+          drawTextFit(series, 960, 292, 700, 150, 76, accent, 'center', FONT_JP, 900);
+          ctx.fillStyle = accent;
+          ctx.fillRect(650, 388, 620, 82);
+          drawTextFit('バックギャモン', 960, 430, 560, 48, 30, '#fff', 'center', FONT_JP, 800);
+          drawTextFit(stage, 960, 550, 620, 98, 54, mix(accent, -0.15), 'center', FONT_JP, 900);
+        } else {
+          drawTextFit(editionText, 960, 138, 650, 62, 40, accent, 'center', FONT_JP, 800);
+          drawTextFit(series, 960, 295, 710, 154, 74, accent, 'center', FONT_JP, 900);
+          ctx.fillStyle = accent;
+          ctx.fillRect(660, 402, 600, 78);
+          drawTextFit('バックギャモン', 960, 441, 550, 46, 30, '#fff', 'center', FONT_JP, 800);
+          drawTextFit(stage, 960, 575, 620, 104, 54, mix(accent, -0.12), 'center', FONT_JP, 900);
+        }
+      }
+      function drawNameBands(accent, isPhotoMode) {
+        const y = 750;
+        const bandH = 248;
+        const leftName = $('leftName').value.trim();
+        const rightName = $('rightName').value.trim();
+        const leftRoman = $('leftRoman').value.trim();
+        const rightRoman = $('rightRoman').value.trim();
+        const supplement = $('supplement').value.trim();
+
+        ctx.fillStyle = isPhotoMode ? alpha(accent, .96) : accent;
+        ctx.fillRect(0, y, 1920, bandH);
+        ctx.fillStyle = isPhotoMode ? 'rgba(255,255,255,.14)' : mix(accent, 0.18);
+        ctx.fillRect(0, y + 172, 1920, 76);
+
+        // VS circle
+        ctx.beginPath();
+        ctx.arc(960, y + 88, 68, 0, Math.PI * 2);
+        ctx.fillStyle = '#fff';
+        ctx.fill();
+        drawTextFit('VS', 960, y + 90, 100, 52, 40, accent, 'center', FONT_LATIN, 900);
+
+        drawTextFit(leftName, 455, y + 78, 760, 102, 52, '#fff', 'center', FONT_JP, 900);
+        drawTextFit(rightName, 1465, y + 78, 760, 102, 52, '#fff', 'center', FONT_JP, 900);
+        drawTextFit(leftRoman, 455, y + 199, 790, 54, 30, '#fff', 'center', FONT_LATIN, 700);
+        drawTextFit(rightRoman, 1465, y + 199, 790, 54, 30, '#fff', 'center', FONT_LATIN, 700);
+
+        ctx.fillStyle = isPhotoMode ? 'rgba(255,255,255,.92)' : '#f6f7f9';
+        ctx.fillRect(0, 998, 1920, 82);
+        if (supplement) {
+          drawTextFit(supplement, 960, 1039, 1740, 48, 28, accent, 'center', FONT_JP, 800);
+        } else {
+          const fallback = `${$('series').value} ${$('stage').value.trim()}`;
+          drawTextFit(fallback, 960, 1039, 1740, 42, 26, alpha(accent,.78), 'center', FONT_JP, 700);
+        }
+      }
+      function render() {
+        const accent = SERIES[$('series').value] || '#6B0D2F';
+        const photoMode = $('bgMode').value === 'photo';
+        document.documentElement.style.setProperty('--accent', accent);
+        $('accentCode').textContent = accent.toUpperCase();
+        $('photoControls').classList.toggle('hidden', !photoMode);
+
+        ctx.clearRect(0, 0, 1920, 1080);
+        if (photoMode && state.bgImage && state.bgImage.naturalWidth) {
+          drawCover(state.bgImage, 0, 0, 1920, 1080, Number($('bgX').value), Number($('bgY').value));
+          const shade = Number($('bgShade').value) / 100;
+          ctx.fillStyle = `rgba(0,0,0,${shade})`;
+          ctx.fillRect(0, 0, 1920, 1080);
+        } else {
+          drawBackgroundPattern(accent);
+          if (!photoMode) {
+            drawPortraitFrame(state.leftImage, 72, 140, 512, accent);
+            drawPortraitFrame(state.rightImage, 1336, 140, 512, accent);
+          } else {
+            // 背景写真未選択時の案内用プレースホルダー
+            ctx.fillStyle = '#dfe3e8';
+            ctx.fillRect(0, 0, 1920, 1080);
+            ctx.fillStyle = '#778090';
+            ctx.font = `800 54px ${FONT_JP}`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('全面背景写真を選択してください', 960, 700);
+          }
+        }
+
+        drawCenterTitle(accent, photoMode);
+        drawNameBands(accent, photoMode);
+      }
+
+      function loadImage(src) {
+        return new Promise((resolve, reject) => {
+          const img = new Image();
+          img.onload = () => resolve(img);
+          img.onerror = reject;
+          img.src = src;
+        });
+      }
+      async function applyPlayer(side, playerId, forcePhoto = true) {
+        const p = players.find(x => x.id === playerId) || players[0];
+        if (!p) return;
+        $(`${side}Name`).value = p.name || '';
+        $(`${side}Roman`).value = p.roman || '';
+        if (forcePhoto) {
+          try {
+            const img = await loadImage(p.photo);
+            state[`${side}Image`] = img;
+            state[`${side}Override`] = false;
+          } catch (e) {
+            state[`${side}Image`] = null;
+          }
+        }
+        render();
+      }
+      function loadFileImage(file, cb) {
+        if (!file) return;
+        const url = URL.createObjectURL(file);
+        const img = new Image();
+        img.onload = () => { cb(img); URL.revokeObjectURL(url); render(); };
+        img.src = url;
+      }
+      function populate() {
+        Object.entries(SERIES).forEach(([name, color]) => {
+          const opt = document.createElement('option');
+          opt.value = name;
+          opt.textContent = `${name}  ${color}`;
+          if (name === '盤聖戦') opt.selected = true;
+          $('series').appendChild(opt);
+        });
+        ['leftPlayer','rightPlayer'].forEach((id) => {
+          players.forEach((p) => {
+            const opt = document.createElement('option');
+            opt.value = p.id;
+            opt.textContent = `${p.name} / ${p.roman}`;
+            $(id).appendChild(opt);
+          });
+        });
+        if (players[0]) $('leftPlayer').value = players[0].id;
+        if (players[1]) $('rightPlayer').value = players[1].id;
+        else if (players[0]) $('rightPlayer').value = players[0].id;
+      }
+      function bind() {
+        ['series','edition','editionUnit','stage','supplement','bgMode','bgX','bgY','bgShade','leftName','leftRoman','rightName','rightRoman']
+          .forEach(id => $(id).addEventListener('input', render));
+        $('series').addEventListener('change', render);
+        $('bgMode').addEventListener('change', render);
+
+        $('leftPlayer').addEventListener('change', () => applyPlayer('left', $('leftPlayer').value, true));
+        $('rightPlayer').addEventListener('change', () => applyPlayer('right', $('rightPlayer').value, true));
+        $('leftPhotoOverride').addEventListener('change', (e) => loadFileImage(e.target.files[0], img => { state.leftImage = img; state.leftOverride = true; }));
+        $('rightPhotoOverride').addEventListener('change', (e) => loadFileImage(e.target.files[0], img => { state.rightImage = img; state.rightOverride = true; }));
+        $('bgPhoto').addEventListener('change', (e) => loadFileImage(e.target.files[0], img => { state.bgImage = img; }));
+
+        $('swapPlayers').addEventListener('click', async () => {
+          const lp = $('leftPlayer').value, rp = $('rightPlayer').value;
+          const ln = $('leftName').value, rn = $('rightName').value;
+          const lr = $('leftRoman').value, rr = $('rightRoman').value;
+          const li = state.leftImage, ri = state.rightImage;
+          $('leftPlayer').value = rp; $('rightPlayer').value = lp;
+          $('leftName').value = rn; $('rightName').value = ln;
+          $('leftRoman').value = rr; $('rightRoman').value = lr;
+          state.leftImage = ri; state.rightImage = li;
+          render();
+        });
+
+        $('downloadBtn').addEventListener('click', () => {
+          render();
+          const series = $('series').value;
+          const stage = $('stage').value.trim() || 'match';
+          const left = $('leftName').value.trim().replace(/\s+/g,'');
+          const right = $('rightName').value.trim().replace(/\s+/g,'');
+          const filename = `JBS_${series}_${stage}_${left}_vs_${right}_1920x1080.png`;
+          canvas.toBlob((blob) => {
+            if (!blob) return;
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+          }, 'image/png');
+        });
+      }
+
+      async function init() {
+        populate();
+        bind();
+        await Promise.all([
+          applyPlayer('left', $('leftPlayer').value, true),
+          applyPlayer('right', $('rightPlayer').value, true)
+        ]);
+        render();
+      }
+      init();
+    })();
+  </script>
+</body>
+</html>
