@@ -257,7 +257,7 @@
   <script>
     // GitHub Pages / browser cache対策。リリースごとにAPP_BUILDを更新する。
     (() => {
-      const APP_BUILD = '09';
+      const APP_BUILD = '10';
       const url = new URL(window.location.href);
       if (url.searchParams.get('v') !== APP_BUILD) {
         url.searchParams.set('v', APP_BUILD);
@@ -265,12 +265,12 @@
       }
     })();
   </script>
-  <script src="players.js?v=09"></script>
+  <script src="players.js?v=10"></script>
   <script>
     (() => {
       'use strict';
 
-      const APP_BUILD = '09';
+      const APP_BUILD = '10';
       console.info(`[JBS Thumbnail] build ${APP_BUILD}`);
 
       const SERIES = {
@@ -316,7 +316,8 @@
         const t = amount >= 0 ? 255 : 0;
         const p = Math.abs(amount);
         const c = (x) => Math.round(x + (t - x) * p);
-        return `rgb(${c(r)},${c(g)},${c(b)})`;
+        const toHex = (x) => c(x).toString(16).padStart(2, '0');
+        return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
       }
       function roundedRect(x, y, w, h, r) {
         const rr = Math.min(r, w / 2, h / 2);
