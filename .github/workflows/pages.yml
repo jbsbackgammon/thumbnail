@@ -24,6 +24,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
+      - name: Generate player master
+        run: node scripts/generate-players.mjs
+
       - name: Configure Pages
         uses: actions/configure-pages@v6
 
