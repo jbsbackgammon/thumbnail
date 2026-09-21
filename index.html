@@ -609,99 +609,212 @@
           drawImpactTextFit(stage, 960, 614, 760, 132, 72, titleColor, accent, shadow, 30, 10, 'center', FONT_JP, 900, 8);
         }
       }
-      function drawPlayerNamePlate(name, roman, x, y, w, accent, alignSide) {
-        ctx.save();
-        ctx.shadowColor = 'rgba(0,0,0,0.34)';
-        ctx.shadowBlur = 18;
-        ctx.shadowOffsetY = 7;
-        roundedRect(x, y, w, 126, 8);
-        ctx.fillStyle = 'rgba(255,255,255,0.97)';
-        ctx.fill();
-        ctx.shadowColor = 'transparent';
-
-        ctx.fillStyle = accent;
-        ctx.fillRect(alignSide === 'left' ? x : x + w - 16, y, 16, 126);
-
-        const cx = x + w / 2;
-        const jp = name || '選手名';
-        const en = roman || 'PLAYER NAME';
-        const jpSize = fitText(jp, w - 66, 82, 44, FONT_JP, 900);
-        ctx.font = `900 ${jpSize}px ${FONT_JP}`;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillStyle = '#172033';
-        ctx.fillText(jp, cx, y + 49);
-
-        const enSize = fitText(en, w - 68, 34, 22, FONT_LATIN, 800);
-        ctx.font = `800 ${enSize}px ${FONT_LATIN}`;
-        ctx.fillStyle = accent;
-        ctx.fillText(en, cx, y + 96);
-        ctx.restore();
-      }
-
       function drawNameBands(accent, isPhotoMode) {
-        const leftName = $('leftName').value.trim();
-        const rightName = $('rightName').value.trim();
-        const leftRoman = $('leftRoman').value.trim();
-        const rightRoman = $('rightRoman').value.trim();
+        const leftName = $('leftName').value.trim() || '選手名';
+        const rightName = $('rightName').value.trim() || '選手名';
+        const leftRoman = $('leftRoman').value.trim() || 'PLAYER NAME';
+        const rightRoman = $('rightRoman').value.trim() || 'PLAYER NAME';
         const supplement = $('supplement').value.trim();
 
-        // Names are deliberately separated from the center title so they never disappear behind it.
-        drawPlayerNamePlate(leftName, leftRoman, 38, 642, 566, accent, 'left');
-        drawPlayerNamePlate(rightName, rightRoman, 1316, 642, 566, accent, 'right');
+        // 当初のサムネイルに近い「下帯」構成。
+        // 上段：日本語名を大きく、下段：ローマ字名。中央にVSを独立配置。
+        const bandY = 736;
+        const jpH = 188;
+        const romanH = 88;
+        const footerY = bandY + jpH + romanH;
 
-        const y = 794;
-        const bandH = 218;
-        const grad = ctx.createLinearGradient(0, y, 0, y + bandH);
-        grad.addColorStop(0, alpha(accent, isPhotoMode ? 0.96 : 0.94));
-        grad.addColorStop(1, alpha(mix(accent, -0.17), 0.99));
-        ctx.fillStyle = grad;
-        ctx.fillRect(0, y, 1920, bandH);
+        // 上段の濃色帯
+        const topGrad = ctx.createLinearGradient(0, bandY, 0, bandY + jpH);
+        topGrad.addColorStop(0, alpha(mix(accent, 0.05), isPhotoMode ? 0.97 : 0.99));
+        topGrad.addColorStop(1, alpha(mix(accent, -0.14), 1));
+        ctx.fillStyle = topGrad;
+        ctx.fillRect(0, bandY, 1920, jpH);
 
+        // 上端の細いハイライト
+        ctx.fillStyle = alpha('#ffffff', 0.72);
+        ctx.fillRect(0, bandY, 1920, 4);
+
+        // 斜めの薄いパターンで単調さを防ぐ
         ctx.save();
-        ctx.globalAlpha = 0.18;
-        for (let i = -1; i < 8; i++) {
-          const xx = i * 268;
+        ctx.globalAlpha = 0.13;
+        for (let x = -160; x < 2080; x += 230) {
           ctx.beginPath();
-          ctx.moveTo(xx, y);
-          ctx.lineTo(xx + 170, y);
-          ctx.lineTo(xx + 70, y + bandH);
-          ctx.lineTo(xx - 100, y + bandH);
+          ctx.moveTo(x, bandY);
+          ctx.lineTo(x + 120, bandY);
+          ctx.lineTo(x + 30, bandY + jpH);
+          ctx.lineTo(x - 90, bandY + jpH);
           ctx.closePath();
           ctx.fillStyle = '#000';
           ctx.fill();
         }
         ctx.restore();
 
-        const vsY = y + 91;
+        // 左右の名前を必ず別領域にクリップして中央と干渉させない
+        const sideMargin = 28;
+        const vsGap = 150;
+        const leftX = sideMargin;
+        const leftW = 960 - vsGap - sideMargin;
+        const rightX = 960 + vsGap;
+        const rightW = 1920 - rightX - sideMargin;
+        const jpY = bandY + 95;
+
+        ctx.save();
         ctx.beginPath();
-        ctx.arc(960, vsY, 70, 0, Math.PI * 2);
-        ctx.fillStyle = '#fff';
+        ctx.rect(leftX, bandY + 10, leftW, jpH - 20);
+        ctx.clip();
+        drawImpactTextFit(
+          leftName,
+          leftX + leftW / 2,
+          jpY,
+          leftW - 28,
+          132,
+          62,
+          '#ffffff',
+          alpha('#000000', 0.20),
+          'rgba(0,0,0,0.30)',
+          24,
+          8,
+          'center',
+          FONT_JP,
+          900,
+          2
+        );
+        ctx.restore();
+
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(rightX, bandY + 10, rightW, jpH - 20);
+        ctx.clip();
+        drawImpactTextFit(
+          rightName,
+          rightX + rightW / 2,
+          jpY,
+          rightW - 28,
+          132,
+          62,
+          '#ffffff',
+          alpha('#000000', 0.20),
+          'rgba(0,0,0,0.30)',
+          24,
+          8,
+          'center',
+          FONT_JP,
+          900,
+          2
+        );
+        ctx.restore();
+
+        // VS：名前帯から独立した白い円
+        ctx.save();
+        ctx.shadowColor = 'rgba(0,0,0,0.28)';
+        ctx.shadowBlur = 20;
+        ctx.shadowOffsetY = 6;
+        ctx.beginPath();
+        ctx.arc(960, jpY, 71, 0, Math.PI * 2);
+        ctx.fillStyle = '#ffffff';
         ctx.fill();
+        ctx.shadowColor = 'transparent';
         ctx.lineWidth = 8;
-        ctx.strokeStyle = alpha(accent, 0.92);
+        ctx.strokeStyle = accent;
         ctx.stroke();
-        ctx.font = `900 56px ${FONT_LATIN}`;
+        ctx.font = `900 58px ${FONT_LATIN}`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillStyle = accent;
-        ctx.fillText('VS', 960, vsY + 1);
+        ctx.fillText('VS', 960, jpY + 2);
+        ctx.restore();
 
-        const leftShort = leftName || '選手名';
-        const rightShort = rightName || '選手名';
-        drawImpactTextFit(leftShort, 476, y + 91, 700, 88, 48, '#fff', 'transparent', 'rgba(0,0,0,0.25)', 16, 6, 'center', FONT_JP, 900, 0);
-        drawImpactTextFit(rightShort, 1444, y + 91, 700, 88, 48, '#fff', 'transparent', 'rgba(0,0,0,0.25)', 16, 6, 'center', FONT_JP, 900, 0);
+        // 下段：ローマ字用の少し明るい帯
+        const romanY = bandY + jpH;
+        const lowerGrad = ctx.createLinearGradient(0, romanY, 0, romanY + romanH);
+        lowerGrad.addColorStop(0, alpha(mix(accent, 0.16), 1));
+        lowerGrad.addColorStop(1, alpha(mix(accent, 0.08), 1));
+        ctx.fillStyle = lowerGrad;
+        ctx.fillRect(0, romanY, 1920, romanH);
+        ctx.fillStyle = alpha('#ffffff', 0.16);
+        ctx.fillRect(0, romanY, 1920, 2);
 
-        const footerGrad = ctx.createLinearGradient(0, 1012, 0, 1080);
-        footerGrad.addColorStop(0, 'rgba(255,255,255,0.94)');
-        footerGrad.addColorStop(1, 'rgba(255,255,255,0.98)');
-        ctx.fillStyle = footerGrad;
-        ctx.fillRect(0, 1012, 1920, 68);
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(leftX, romanY, leftW, romanH);
+        ctx.clip();
+        drawImpactTextFit(
+          leftRoman,
+          leftX + leftW / 2,
+          romanY + romanH / 2 + 1,
+          leftW - 24,
+          58,
+          28,
+          '#ffffff',
+          'transparent',
+          'rgba(0,0,0,0.18)',
+          12,
+          3,
+          'center',
+          FONT_LATIN,
+          800,
+          0
+        );
+        ctx.restore();
+
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(rightX, romanY, rightW, romanH);
+        ctx.clip();
+        drawImpactTextFit(
+          rightRoman,
+          rightX + rightW / 2,
+          romanY + romanH / 2 + 1,
+          rightW - 24,
+          58,
+          28,
+          '#ffffff',
+          'transparent',
+          'rgba(0,0,0,0.18)',
+          12,
+          3,
+          'center',
+          FONT_LATIN,
+          800,
+          0
+        );
+        ctx.restore();
+
+        // 補足情報は最下部の白帯に独立表示
+        ctx.fillStyle = 'rgba(255,255,255,0.97)';
+        ctx.fillRect(0, footerY, 1920, 1080 - footerY);
         if (supplement) {
-          drawImpactTextFit(supplement, 960, 1047, 1760, 56, 32, accent, 'transparent', 'rgba(255,255,255,0.15)', 8, 0, 'center', FONT_JP, 900, 0);
+          drawImpactTextFit(
+            supplement,
+            960,
+            footerY + (1080 - footerY) / 2,
+            1760,
+            48,
+            28,
+            accent,
+            'transparent',
+            'rgba(255,255,255,0.18)',
+            8,
+            0,
+            'center',
+            FONT_JP,
+            900,
+            0
+          );
         } else {
           const fallback = `${$('series').value} ${$('stage').value.trim()}`;
-          drawTextFit(fallback, 960, 1047, 1740, 46, 28, alpha(accent,.80), 'center', FONT_JP, 800);
+          drawTextFit(
+            fallback,
+            960,
+            footerY + (1080 - footerY) / 2,
+            1740,
+            42,
+            26,
+            alpha(accent, .82),
+            'center',
+            FONT_JP,
+            800
+          );
         }
       }
 
