@@ -257,7 +257,7 @@
   <script>
     // GitHub Pages / browser cache対策。リリースごとにAPP_BUILDを更新する。
     (() => {
-      const APP_BUILD = '10';
+      const APP_BUILD = '11';
       const url = new URL(window.location.href);
       if (url.searchParams.get('v') !== APP_BUILD) {
         url.searchParams.set('v', APP_BUILD);
@@ -265,12 +265,12 @@
       }
     })();
   </script>
-  <script src="players.js?v=10"></script>
+  <script src="players.js?v=11"></script>
   <script>
     (() => {
       'use strict';
 
-      const APP_BUILD = '10';
+      const APP_BUILD = '11';
       console.info(`[JBS Thumbnail] build ${APP_BUILD}`);
 
       const SERIES = {
@@ -585,11 +585,7 @@
           ctx.stroke();
           ctx.restore();
 
-          ctx.fillStyle = accent;
-          roundedRect(642, 484, 636, 94, 2);
-          ctx.fill();
-          drawImpactTextFit('バックギャモン', 960, 531, 560, 58, 36, '#fff', 'transparent', 'rgba(0,0,0,0.12)', 10, 3, 'center', FONT_JP, 900, 0);
-          drawImpactTextFit(stage, 960, 612, 700, 130, 68, mix(accent, -0.08), 'transparent', 'rgba(255,255,255,0.22)', 12, 0, 'center', FONT_JP, 900, 0);
+          drawImpactTextFit(stage, 960, 552, 760, 158, 82, mix(accent, -0.08), 'transparent', 'rgba(255,255,255,0.22)', 14, 0, 'center', FONT_JP, 900, 0);
         } else {
           const panelGrad = ctx.createLinearGradient(0, 90, 0, 690);
           panelGrad.addColorStop(0, 'rgba(255,255,255,0.10)');
@@ -630,8 +626,7 @@
           ctx.stroke();
           ctx.restore();
 
-          drawImpactTextFit('バックギャモン', 960, 552, 620, 104, 54, titleColor, accent, shadow, 28, 10, 'center', FONT_JP, 900, 7);
-          drawImpactTextFit(stage, 960, 614, 760, 132, 72, titleColor, accent, shadow, 30, 10, 'center', FONT_JP, 900, 8);
+          drawImpactTextFit(stage, 960, 565, 800, 166, 86, titleColor, accent, shadow, 32, 10, 'center', FONT_JP, 900, 8);
         }
       }
       function drawNameBands(accent, isPhotoMode) {
