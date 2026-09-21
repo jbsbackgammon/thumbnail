@@ -571,7 +571,7 @@
           roundedRect(642, 484, 636, 94, 2);
           ctx.fill();
           drawImpactTextFit('バックギャモン', 960, 531, 560, 58, 36, '#fff', 'transparent', 'rgba(0,0,0,0.12)', 10, 3, 'center', FONT_JP, 900, 0);
-          drawImpactTextFit(stage, 960, 620, 700, 136, 70, mix(accent, -0.08), 'transparent', 'rgba(255,255,255,0.22)', 12, 0, 'center', FONT_JP, 900, 0);
+          drawImpactTextFit(stage, 960, 612, 700, 130, 68, mix(accent, -0.08), 'transparent', 'rgba(255,255,255,0.22)', 12, 0, 'center', FONT_JP, 900, 0);
         } else {
           drawImpactTextFit(editionText, 960, titleYBase, 860, 92, 58, titleColor, accent, shadow, 28, 10, 'center', FONT_JP, 900, 6);
           drawImpactTextFit(series, 960, 330, 860, 214, 118, titleColor, accent, shadow, 34, 12, 'center', FONT_JP, 900, 8);
@@ -587,12 +587,12 @@
           ctx.restore();
 
           drawImpactTextFit('バックギャモン', 960, 554, 620, 104, 54, titleColor, accent, shadow, 28, 10, 'center', FONT_JP, 900, 7);
-          drawImpactTextFit(stage, 960, 680, 900, 166, 86, titleColor, accent, shadow, 32, 12, 'center', FONT_JP, 900, 8);
+          drawImpactTextFit(stage, 960, 664, 900, 154, 82, titleColor, accent, shadow, 32, 12, 'center', FONT_JP, 900, 8);
         }
       }
       function drawNameBands(accent, isPhotoMode) {
-        const y = 776;
-        const bandH = 236;
+        const y = 770;
+        const bandH = 242;
         const leftName = $('leftName').value.trim();
         const rightName = $('rightName').value.trim();
         const leftRoman = $('leftRoman').value.trim();
@@ -606,10 +606,10 @@
         ctx.fillRect(0, y, 1920, bandH);
 
         ctx.fillStyle = isPhotoMode ? alpha('#ffffff', .17) : alpha('#ffffff', .13);
-        ctx.fillRect(0, y + 165, 1920, 71);
+        ctx.fillRect(0, y + 168, 1920, 74);
 
         ctx.save();
-        ctx.globalAlpha = 0.22;
+        ctx.globalAlpha = 0.20;
         for (let i = -1; i < 8; i++) {
           const xx = i * 268;
           ctx.beginPath();
@@ -623,19 +623,48 @@
         }
         ctx.restore();
 
+        const vsY = y + 92;
         ctx.beginPath();
-        ctx.arc(960, y + 89, 72, 0, Math.PI * 2);
+        ctx.arc(960, vsY, 72, 0, Math.PI * 2);
         ctx.fillStyle = '#fff';
         ctx.fill();
         ctx.lineWidth = 8;
         ctx.strokeStyle = alpha(accent, 0.92);
         ctx.stroke();
-        drawImpactTextFit('VS', 960, y + 90, 100, 56, 42, accent, 'transparent', 'rgba(0,0,0,0.08)', 6, 1, 'center', FONT_LATIN, 900, 0);
+        drawImpactTextFit('VS', 960, vsY + 1, 100, 56, 42, accent, 'transparent', 'rgba(0,0,0,0.08)', 6, 1, 'center', FONT_LATIN, 900, 0);
 
-        drawImpactTextFit(leftName, 442, y + 76, 748, 118, 64, '#fff', 'transparent', 'rgba(0,0,0,0.22)', 20, 8, 'center', FONT_JP, 900, 0);
-        drawImpactTextFit(rightName, 1478, y + 76, 748, 118, 64, '#fff', 'transparent', 'rgba(0,0,0,0.22)', 20, 8, 'center', FONT_JP, 900, 0);
-        drawTextFit(leftRoman, 442, y + 198, 790, 64, 34, '#fff', 'center', FONT_LATIN, 800);
-        drawTextFit(rightRoman, 1478, y + 198, 790, 64, 34, '#fff', 'center', FONT_LATIN, 800);
+        const leftCenter = 420;
+        const rightCenter = 1500;
+        const nameY = y + 74;
+        const romanY = y + 198;
+
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(24, y + 6, 760, 162);
+        ctx.clip();
+        drawImpactTextFit(leftName, leftCenter, nameY, 710, 112, 58, '#fff', 'transparent', 'rgba(0,0,0,0.24)', 20, 8, 'center', FONT_JP, 900, 0);
+        ctx.restore();
+
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(1136, y + 6, 760, 162);
+        ctx.clip();
+        drawImpactTextFit(rightName, rightCenter, nameY, 710, 112, 58, '#fff', 'transparent', 'rgba(0,0,0,0.24)', 20, 8, 'center', FONT_JP, 900, 0);
+        ctx.restore();
+
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(28, y + 148, 748, 76);
+        ctx.clip();
+        drawTextFit(leftRoman, leftCenter, romanY, 700, 60, 30, '#fff', 'center', FONT_LATIN, 800);
+        ctx.restore();
+
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(1144, y + 148, 748, 76);
+        ctx.clip();
+        drawTextFit(rightRoman, rightCenter, romanY, 700, 60, 30, '#fff', 'center', FONT_LATIN, 800);
+        ctx.restore();
 
         const footerGrad = ctx.createLinearGradient(0, 1012, 0, 1080);
         footerGrad.addColorStop(0, 'rgba(255,255,255,0.92)');
