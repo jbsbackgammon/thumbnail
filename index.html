@@ -306,12 +306,12 @@
     </aside>
   </div>
 
-  <script src="players.js?v=82"></script>
+  <script src="players.js?v=89"></script>
   <script>
     (() => {
       'use strict';
 
-      const APP_BUILD = '82';
+      const APP_BUILD = '89';
       console.info(`[JBS Thumbnail] build ${APP_BUILD}`);
 
       const SERIES = {
@@ -545,11 +545,24 @@
           ctx.fillStyle = '#e8ebef';
           roundedRect(x, y, size, size, 12);
           ctx.fill();
-          ctx.fillStyle = '#8892a0';
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'middle';
-          ctx.font = `700 34px ${FONT_JP}`;
-          
+          ctx.save();
+          roundedRect(x, y, size, size, 12);
+          ctx.clip();
+          ctx.fillStyle = '#9ca6b3';
+          ctx.beginPath();
+          ctx.arc(x + size / 2, y + size * 0.40, size * 0.25, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.beginPath();
+          ctx.moveTo(x + size * 0.17, y + size);
+          ctx.lineTo(x + size * 0.17, y + size * 0.9);
+          ctx.quadraticCurveTo(x + size * 0.17, y + size * 0.74, x + size * 0.36, y + size * 0.69);
+          ctx.bezierCurveTo(x + size * 0.42, y + size * 0.65, x + size * 0.46, y + size * 0.65, x + size * 0.5, y + size * 0.65);
+          ctx.bezierCurveTo(x + size * 0.54, y + size * 0.65, x + size * 0.58, y + size * 0.65, x + size * 0.64, y + size * 0.69);
+          ctx.quadraticCurveTo(x + size * 0.83, y + size * 0.74, x + size * 0.83, y + size * 0.9);
+          ctx.lineTo(x + size * 0.83, y + size);
+          ctx.closePath();
+          ctx.fill();
+          ctx.restore();
         }
         ctx.restore();
       }
@@ -779,14 +792,16 @@
         $('photoControls').classList.toggle('hidden', !hasBackgroundPhoto);
 
         ctx.clearRect(0, 0, 1920, 1080);
-        if (photoDesign) {
-          ctx.fillStyle = accent;
+        if (hasBackgroundPhoto) {
+          ctx.fillStyle = photoDesign ? accent : '#666666';
           ctx.fillRect(0, 0, 1920, 1080);
-          drawScaledBackground(state.bgImage, 0, 0, 1920, 1080, Number($('bgX').value), Number($('bgY').value), Number($('bgScale').value));
-          const shade = Number($('bgShade').value) / 100;
-          if (shade > 0) {
-            ctx.fillStyle = `rgba(0,0,0,${shade})`;
-            ctx.fillRect(0, 0, 1920, 1080);
+          if (photoDesign) {
+            drawScaledBackground(state.bgImage, 0, 0, 1920, 1080, Number($('bgX').value), Number($('bgY').value), Number($('bgScale').value));
+            const shade = Number($('bgShade').value) / 100;
+            if (shade > 0) {
+              ctx.fillStyle = `rgba(0,0,0,${shade})`;
+              ctx.fillRect(0, 0, 1920, 1080);
+            }
           }
         } else {
           drawBackgroundPattern(accent);
