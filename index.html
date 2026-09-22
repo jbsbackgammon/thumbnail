@@ -306,12 +306,12 @@
     </aside>
   </div>
 
-  <script src="players.js?v=89"></script>
+  <script src="players.js?v=90"></script>
   <script>
     (() => {
       'use strict';
 
-      const APP_BUILD = '89';
+      const APP_BUILD = '90';
       console.info(`[JBS Thumbnail] build ${APP_BUILD}`);
 
       const SERIES = {
@@ -767,14 +767,14 @@
             64,
             28,
             '#ffffff',
-            'transparent',
+            accent,
             'rgba(0,0,0,0.65)',
             8,
             0,
             'center',
             FONT_JP,
             900,
-            0
+            isPhotoMode ? 5 : 4
           );
         }
       }
