@@ -306,12 +306,12 @@
     </aside>
   </div>
 
-  <script src="players.js?v=78"></script>
+  <script src="players.js?v=79"></script>
   <script>
     (() => {
       'use strict';
 
-      const APP_BUILD = '78';
+      const APP_BUILD = '79';
       console.info(`[JBS Thumbnail] build ${APP_BUILD}`);
 
       const SERIES = {
@@ -906,8 +906,8 @@
 
         $('downloadBtn').addEventListener('click', () => {
           render();
-          const series = [$('series').value, $('seriesSubtitle').value.trim()].filter(Boolean).join('_');
-          const stage = [$('stagePrefix').value.trim(), $('stage').value.trim()].filter(Boolean).join('_') || 'match';
+          const series = [$('series').value.trim(), $('seriesSubtitle').value.trim()].filter(Boolean).join('');
+          const stage = [$('stagePrefix').value.trim(), $('stage').value.trim()].filter(Boolean).join('') || 'match';
           const left = $('leftName').value.trim().replace(/\s+/g,'');
           const right = $('rightName').value.trim().replace(/\s+/g,'');
           const edition = $('edition').value.trim();
