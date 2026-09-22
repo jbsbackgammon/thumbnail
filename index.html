@@ -306,12 +306,12 @@
     </aside>
   </div>
 
-  <script src="players.js?v=76"></script>
+  <script src="players.js?v=77"></script>
   <script>
     (() => {
       'use strict';
 
-      const APP_BUILD = '76';
+      const APP_BUILD = '77';
       console.info(`[JBS Thumbnail] build ${APP_BUILD}`);
 
       const SERIES = {
@@ -610,14 +610,6 @@
         const shadow = 'rgba(0,0,0,0.35)';
 
         if (isPhotoMode) {
-          ctx.save();
-          ctx.lineWidth = 80;
-          ctx.strokeStyle = alpha('#ffffff', 0.58);
-          ctx.beginPath();
-          ctx.arc(960, 384, 325, 0, Math.PI * 2);
-          ctx.stroke();
-          ctx.restore();
-
           drawImpactTextFit(editionText, 960, titleYBase, titleWidth, 96, 2, titleColor, accent, shadow, 34, 10, 'center', FONT_JP, 900, 9, true);
           drawSeries(titleColor, accent, shadow, 48, 14, 14);
 
@@ -636,27 +628,6 @@
 
           drawStage(titleColor, accent, shadow, 36, 10, 11);
         } else {
-          const panelGrad = ctx.createLinearGradient(0, 90, 0, 690);
-          panelGrad.addColorStop(0, 'rgba(255,255,255,0.10)');
-          panelGrad.addColorStop(1, 'rgba(255,255,255,0.03)');
-          ctx.save();
-          ctx.shadowColor = 'rgba(0,0,0,.26)';
-          ctx.shadowBlur = 34;
-          ctx.shadowOffsetY = 10;
-          ctx.beginPath();
-          ctx.arc(960, 384, 374, 0, Math.PI * 2);
-          ctx.fillStyle = panelGrad;
-          ctx.fill();
-          ctx.restore();
-
-          ctx.save();
-          ctx.lineWidth = 80;
-          ctx.strokeStyle = alpha('#ffffff', 0.58);
-          ctx.beginPath();
-          ctx.arc(960, 384, 325, 0, Math.PI * 2);
-          ctx.stroke();
-          ctx.restore();
-
           drawImpactTextFit(editionText, 960, titleYBase, titleWidth, 96, 2, titleColor, accent, shadow, 30, 10, 'center', FONT_JP, 900, 6, true);
           drawSeries(titleColor, accent, shadow, 44, 14, 10);
 
