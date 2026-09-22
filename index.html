@@ -306,12 +306,12 @@
     </aside>
   </div>
 
-  <script src="players.js?v=77"></script>
+  <script src="players.js?v=78"></script>
   <script>
     (() => {
       'use strict';
 
-      const APP_BUILD = '77';
+      const APP_BUILD = '78';
       console.info(`[JBS Thumbnail] build ${APP_BUILD}`);
 
       const SERIES = {
@@ -910,7 +910,9 @@
           const stage = [$('stagePrefix').value.trim(), $('stage').value.trim()].filter(Boolean).join('_') || 'match';
           const left = $('leftName').value.trim().replace(/\s+/g,'');
           const right = $('rightName').value.trim().replace(/\s+/g,'');
-          const filename = `JBS_${series}_${stage}_${left}_vs_${right}_1920x1080.png`;
+          const edition = $('edition').value.trim();
+          const matchup = left || right ? `${left}vs${right}` : '';
+          const filename = `${[edition, series, stage, matchup].filter(Boolean).join('_')}.png`;
           canvas.toBlob((blob) => {
             if (!blob) return;
             const a = document.createElement('a');
