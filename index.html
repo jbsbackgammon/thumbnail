@@ -306,12 +306,12 @@
     </aside>
   </div>
 
-  <script src="players.js?v=74"></script>
+  <script src="players.js?v=75"></script>
   <script>
     (() => {
       'use strict';
 
-      const APP_BUILD = '74';
+      const APP_BUILD = '75';
       console.info(`[JBS Thumbnail] build ${APP_BUILD}`);
 
       const SERIES = {
@@ -878,7 +878,8 @@
           const generated = await response.json();
           if (!Array.isArray(generated)) return;
           const existing = new Set(players.map((player) => `${player.name}\u0000${player.roman}`));
-          players.push(...generated.filter((player) => !existing.has(`${player.name}\u0000${player.roman}`)));
+          const excludedRomans = new Set(['YANAGI Nobusuke', 'MEIJO Kentaro']);
+          players.push(...generated.filter((player) => !excludedRomans.has(player.roman) && !existing.has(`${player.name}\u0000${player.roman}`)));
         } catch (error) {
           console.warn('[JBS Thumbnail] players.json could not be loaded.', error);
         }
