@@ -306,12 +306,12 @@
     </aside>
   </div>
 
-  <script src="players.js?v=80"></script>
+  <script src="players.js?v=81"></script>
   <script>
     (() => {
       'use strict';
 
-      const APP_BUILD = '80';
+      const APP_BUILD = '81';
       console.info(`[JBS Thumbnail] build ${APP_BUILD}`);
 
       const SERIES = {
@@ -574,7 +574,7 @@
           }
         }
         const stageY = (510 + 704) / 2;
-        function drawFinalMarks(y, color, outline) {
+        function drawFinalMarks(y, color, outline, outlineWidth) {
           ctx.save();
           ctx.fillStyle = color;
           ctx.globalAlpha = 0.9;
@@ -590,7 +590,7 @@
             ctx.closePath();
             ctx.fill();
             ctx.strokeStyle = outline;
-            ctx.lineWidth = 4;
+            ctx.lineWidth = outlineWidth;
             ctx.stroke();
           }
           ctx.restore();
@@ -599,12 +599,12 @@
           const isFinal = stage === '決勝';
           if (!stagePrefix) {
             drawImpactTextFit(stage, 960, stageY, titleWidth, isFinal ? 144 : 124, 2, fill, stroke, textShadow, blur, offset, 'center', FONT_JP, 900, strokeWidth);
-            if (isFinal) drawFinalMarks(stageY, fill, stroke);
+            if (isFinal) drawFinalMarks(stageY, fill, stroke, strokeWidth);
             return;
           }
           drawImpactTextFit(stagePrefix, 960, 552, titleWidth, 56, 2, fill, stroke, textShadow, 10, 2, 'center', FONT_JP, 900, strokeWidth / 2);
           drawImpactTextFit(stage, 960, 646, titleWidth, isFinal ? 112 : 104, 2, fill, stroke, textShadow, 18, 5, 'center', FONT_JP, 900, strokeWidth);
-          if (isFinal) drawFinalMarks(646, fill, stroke);
+          if (isFinal) drawFinalMarks(646, fill, stroke, strokeWidth);
         }
         const titleColor = '#ffffff';
         const shadow = 'rgba(0,0,0,0.35)';
