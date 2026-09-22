@@ -52,11 +52,12 @@
       gap: 12px;
       min-width: 0;
     }
-    .event-row { grid-template-columns: repeat(7, minmax(0, 1fr)); }
+    .event-row { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+    .details-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     #photoControls { grid-column: 2 / -1; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
     #photoControls .hint { grid-column: 1 / -1; }
     @media (max-width: 700px) {
-      .form-row, .event-row, #photoControls { grid-template-columns: minmax(0, 1fr); }
+      .form-row, .event-row, .details-row, #photoControls { grid-template-columns: minmax(0, 1fr); }
       #photoControls { grid-column: 1; }
     }
     label { display: block; font-size: 12px; font-weight: 700; color: #4b556b; margin-bottom: 5px; }
@@ -160,10 +161,6 @@
     <aside class="controls">
       <section class="form-row event-row">
         <div class="field">
-          <label for="sponsor">冠名</label>
-          <input id="sponsor" type="text" value="" />
-        </div>
-        <div class="field">
           <label for="edition">回次等</label>
           <input id="edition" type="text" value="JBS 第32期" />
         </div>
@@ -200,10 +197,6 @@
         <div class="field">
           <label for="stagePrefix">試合名（小）</label>
           <input id="stagePrefix" type="text" value="" />
-        </div>
-        <div class="field">
-          <label for="supplement">試合補足</label>
-          <input id="supplement" value="" />
         </div>
       </section>
 
@@ -246,6 +239,17 @@
             <input id="rightRoman" />
           </div>
         </div>
+
+      <section class="form-row details-row">
+        <div class="field">
+          <label for="sponsor">冠名</label>
+          <input id="sponsor" type="text" value="" />
+        </div>
+        <div class="field">
+          <label for="supplement">試合補足</label>
+          <input id="supplement" value="" />
+        </div>
+      </section>
 
 
       <section class="form-row">
@@ -302,12 +306,12 @@
     </aside>
   </div>
 
-  <script src="players.js?v=69"></script>
+  <script src="players.js?v=74"></script>
   <script>
     (() => {
       'use strict';
 
-      const APP_BUILD = '69';
+      const APP_BUILD = '74';
       console.info(`[JBS Thumbnail] build ${APP_BUILD}`);
 
       const SERIES = {
@@ -326,7 +330,7 @@
       const canvas = $('canvas');
       const ctx = canvas.getContext('2d');
       const FONT_JP = '"Noto Sans JP", "Yu Gothic", "YuGothic", "Hiragino Sans", "Meiryo", sans-serif';
-      const FONT_LATIN = 'Arial, Helvetica, sans-serif';
+      const FONT_LATIN = FONT_JP;
 
       const state = {
         leftImage: null,
@@ -732,7 +736,7 @@
         ctx.fillStyle = '#ffffff';
         ctx.fill();
         ctx.shadowColor = 'transparent';
-        ctx.font = '900 60px ' + FONT_LATIN;
+        ctx.font = '900 76px ' + FONT_LATIN;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillStyle = accent;
@@ -838,8 +842,15 @@
         });
       }
       async function applyPlayer(side, playerId, forcePhoto = true) {
-        const p = players.find(x => x.id === playerId) || players[0];
-        if (!p) return;
+        const p = players.find(x => x.id === playerId);
+        if (!p) {
+          $(`${side}Name`).value = '';
+          $(`${side}Roman`).value = '';
+          state[`${side}Image`] = null;
+          state[`${side}Override`] = false;
+          render();
+          return;
+        }
         $(`${side}Name`).value = p.name || '';
         $(`${side}Roman`).value = p.roman || '';
         if (forcePhoto) {
@@ -879,6 +890,10 @@
           $('seriesList').appendChild(opt);
         });
         ['leftPlayer','rightPlayer'].forEach((id) => {
+          const emptyOption = document.createElement('option');
+          emptyOption.value = '';
+          emptyOption.textContent = '候補から選択';
+          $(id).appendChild(emptyOption);
           players.forEach((p) => {
             const opt = document.createElement('option');
             opt.value = p.id;
@@ -886,9 +901,6 @@
             $(id).appendChild(opt);
           });
         });
-        if (players[0]) $('leftPlayer').value = players[0].id;
-        if (players[1]) $('rightPlayer').value = players[1].id;
-        else if (players[0]) $('rightPlayer').value = players[0].id;
       }
       function bind() {
         ['sponsor','seriesSubtitle','edition','stagePrefix','stage','supplement','bgMode','bgX','bgY','bgScale','bgShade','leftName','leftRoman','rightName','rightRoman']
