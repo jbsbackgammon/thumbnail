@@ -3,6 +3,7 @@ import { extname, join, parse, posix } from 'node:path';
 
 const imageDir = join(process.cwd(), 'assets', 'players');
 const supported = new Set(['.png', '.jpg', '.jpeg', '.webp']);
+const excludedRomans = new Set(['YANAGI Nobusuke', 'MEIJO Kentaro']);
 const files = await readdir(imageDir, { withFileTypes: true });
 
 const players = files
@@ -17,7 +18,7 @@ const players = files
     const id = roman.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
     return { id: id || encodeURIComponent(name), name, roman, photo: posix.join('assets/players', filename) };
   })
-  .filter(Boolean)
+  .filter((player) => player && !excludedRomans.has(player.roman))
   .sort((a, b) => a.roman.localeCompare(b.roman, 'en'));
 
 await writeFile('players.json', `${JSON.stringify(players, null, 2)}\n`, 'utf8');
