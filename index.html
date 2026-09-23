@@ -16,7 +16,8 @@
       --line: #dfe3eb;
       --panel: #ffffff;
       --bg: #f4f6f9;
-      --accent: #6B0D2F;
+      --accent: #000000;
+      --accent-ink: #ffffff;
     }
     * { box-sizing: border-box; }
     html, body { margin: 0; min-height: 100%; }
@@ -73,18 +74,26 @@
     }
     input:focus, select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 13%, transparent); }
     .combo-input { position: relative; }
-    .combo-input input { padding-right: 38px; appearance: none; }
+    .combo-input input { padding-left: 53px; appearance: none; }
     .combo-input input::-webkit-calendar-picker-indicator { display: none !important; opacity: 0; }
     .combo-input button {
-      position: absolute; top: 1px; right: 1px; width: 36px; height: 38px;
-      border: 0; border-left: 1px solid #cfd5df; border-radius: 0 8px 8px 0;
-      background: #fff; color: var(--ink); cursor: pointer; font-size: 0;
+      position: absolute; top: 1px; left: 1px; width: 45px; height: 38px;
+      border: 0; border-right: 1px solid #cfd5df; border-radius: 8px 0 0 8px;
+      background: #f7f8fa; color: var(--ink); cursor: pointer;
+      font-size: 12px; font-weight: 700;
     }
-    .combo-input button::after {
-      content: ''; display: block; width: 0; height: 0; margin: auto;
-      border-left: 6px solid transparent; border-right: 6px solid transparent;
-      border-top: 8px solid var(--ink);
+    .combo-menu {
+      position: absolute; z-index: 5; top: calc(100% + 2px); left: 0;
+      width: 100%; max-height: 240px; overflow-y: auto;
+      padding: 4px; border: 1px solid #cfd5df; border-radius: 9px;
+      background: #fff; box-shadow: 0 8px 20px rgba(28,39,60,.18);
     }
+    .combo-menu button {
+      position: static; display: block; width: 100%; height: auto;
+      min-height: 34px; padding: 6px 9px; border: 0; border-radius: 5px;
+      background: #fff; text-align: left; font-size: 13px; font-weight: 400;
+    }
+    .combo-menu button:hover, .combo-menu button:focus { background: #f1f3f6; }
     .native-file { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
     .file-picker { display: flex; align-items: center; min-height: 40px; border: 1px solid #cfd5df; border-radius: 9px; overflow: hidden; background: #fff; }
     .file-button { display: flex; align-items: center; align-self: stretch; margin: 0; padding: 0 10px; border-right: 1px solid #cfd5df; color: var(--ink); background: #f7f8fa; cursor: pointer; white-space: nowrap; }
@@ -95,23 +104,39 @@
     input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
     input[type="color"]::-webkit-color-swatch { border: 0; border-radius: 0; }
     input[type="color"]::-moz-color-swatch { border: 0; border-radius: 0; }
-    .color-value output { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+    .color-value .color-code { width: 104px; min-height: 40px; font-size: 13px; font-variant-numeric: tabular-nums; text-transform: uppercase; }
     input[type="range"] { min-height: 28px; padding: 0; }
     .hint { font-size: 11px; color: var(--muted); line-height: 1.55; margin-top: 4px; }
     .preview-download {
       position: absolute;
       top: 24px;
       right: 24px;
+      width: 100px;
       z-index: 2;
       border: 0;
       border-radius: 999px;
       padding: 10px 16px;
       font-weight: 800;
-      color: #fff;
+      color: var(--accent-ink);
       background: var(--accent);
       cursor: pointer;
       box-shadow: 0 6px 18px color-mix(in srgb, var(--accent) 25%, transparent);
     }
+    .preview-restore {
+      position: absolute;
+      top: 76px;
+      right: 24px;
+      width: 100px;
+      z-index: 2;
+      border: 1px solid var(--saved-accent, var(--accent));
+      border-radius: 999px;
+      padding: 8px 14px;
+      color: var(--saved-ink, var(--accent-ink));
+      background: var(--saved-accent, var(--accent));
+      font-weight: 800;
+      cursor: pointer;
+    }
+    .preview-restore:disabled { opacity: .45; cursor: default; }
     .preview-wrap {
       position: relative;
       display: flex;
@@ -146,6 +171,7 @@
       .preview-wrap { padding: 14px; }
       canvas { width: min(100%, 640px); }
       .preview-download { top: 14px; right: 14px; padding: 9px 14px; }
+      .preview-restore { top: 62px; right: 14px; }
     }
   </style>
 </head>
@@ -153,6 +179,7 @@
   <div class="app">
     <main class="preview-wrap">
       <button class="preview-download" id="downloadBtn" type="button">PNG保存</button>
+      <button class="preview-restore" id="restoreBtn" type="button" disabled>前回呼出</button>
       <div class="canvas-shell">
         <canvas id="canvas" width="1920" height="1080" aria-label="サムネイルプレビュー"></canvas>
       </div>
@@ -162,13 +189,14 @@
       <section class="form-row event-row">
         <div class="field">
           <label for="edition">回次等</label>
-          <input id="edition" type="text" value="JBS 第32期" />
+          <input id="edition" type="text" value="" />
         </div>
         <div class="field">
           <label for="series">大会名</label>
           <div class="combo-input">
-            <input id="series" list="seriesList" value="盤聖戦" placeholder="候補から選択" />
-            <button type="button" data-picker="series" aria-label="大会名の候補を表示"></button>
+            <input id="series" value="" placeholder="候補から選択" />
+            <button type="button" data-picker="series" aria-label="大会名の候補を表示">選択</button>
+            <div class="combo-menu hidden" id="seriesMenu"></div>
           </div>
           <datalist id="seriesList"></datalist>
         </div>
@@ -179,8 +207,9 @@
         <div class="field">
           <label for="stage">試合名</label>
           <div class="combo-input">
-            <input id="stage" list="stageList" value="決勝" placeholder="候補から選択" />
-            <button type="button" data-picker="stage" aria-label="試合名の候補を表示"></button>
+            <input id="stage" value="" placeholder="候補から選択" />
+            <button type="button" data-picker="stage" aria-label="試合名の候補を表示">選択</button>
+            <div class="combo-menu hidden" id="stageMenu"></div>
           </div>
           <datalist id="stageList">
             <option value="決勝"></option>
@@ -189,9 +218,9 @@
             <option value="１回戦"></option>
             <option value="２回戦"></option>
             <option value="３回戦"></option>
-            <option value="本戦1回戦"></option>
-            <option value="本戦2回戦"></option>
-            <option value="本戦3回戦"></option>
+            <option value="本戦１回戦"></option>
+            <option value="本戦２回戦"></option>
+            <option value="本戦３回戦"></option>
           </datalist>
         </div>
         <div class="field">
@@ -291,27 +320,27 @@
         <div class="field">
           <label for="mainColor">メインカラー</label>
           <div class="color-value">
-            <input id="mainColor" type="color" value="#6b0d2f" />
-            <output id="mainColorCode" for="mainColor"></output>
+            <input id="mainColor" type="color" value="#000000" />
+            <input class="color-code" id="mainColorCode" type="text" value="#000000" aria-label="メインカラーのカラーコード" spellcheck="false" maxlength="7" />
           </div>
         </div>
         <div class="field">
           <label for="subColor">サブカラー</label>
           <div class="color-value">
-            <input id="subColor" type="color" value="#832e48" />
-            <output id="subColorCode" for="subColor"></output>
+            <input id="subColor" type="color" value="#525252" />
+            <input class="color-code" id="subColorCode" type="text" value="#525252" aria-label="サブカラーのカラーコード" spellcheck="false" maxlength="7" />
           </div>
         </div>
       </section>
     </aside>
   </div>
 
-  <script src="players.js?v=91"></script>
+  <script src="players.js?v=104"></script>
   <script>
     (() => {
       'use strict';
 
-      const APP_BUILD = '91';
+      const APP_BUILD = '104';
       console.info(`[JBS Thumbnail] build ${APP_BUILD}`);
 
       const SERIES = {
@@ -323,6 +352,11 @@
         '棋聖戦': '#6B230D',
         '女王戦': '#6B0D5B',
         '新鋭戦': '#0D676B'
+      };
+      const OPEN_SERIES = {
+        '大阪オープン': '#F8B62B',
+        '東京オープン': '#009F40',
+        '名古屋オープン': '#0C284D'
       };
 
       let players = Array.isArray(window.JBS_PLAYERS) ? [...window.JBS_PLAYERS] : [];
@@ -339,6 +373,59 @@
         leftOverride: false,
         rightOverride: false
       };
+      const SAVED_FIELDS = ['edition','series','seriesSubtitle','stage','stagePrefix','leftPlayer','leftName','leftRoman','rightPlayer','rightName','rightRoman','sponsor','supplement','bgMode','bgX','bgY','bgScale','bgShade','mainColor','subColor'];
+      const savedFiles = { left: null, right: null, bg: null };
+      function openSavedDb() {
+        return new Promise((resolve, reject) => {
+          const request = indexedDB.open('jbs-thumbnail-settings', 1);
+          request.onupgradeneeded = () => request.result.createObjectStore('snapshots');
+          request.onsuccess = () => resolve(request.result);
+          request.onerror = () => reject(request.error);
+        });
+      }
+      async function savedSnapshot(mode, value) {
+        const db = await openSavedDb();
+        return new Promise((resolve, reject) => {
+          const tx = db.transaction('snapshots', mode === 'save' ? 'readwrite' : 'readonly');
+          const request = mode === 'save' ? tx.objectStore('snapshots').put(value, 'last') : tx.objectStore('snapshots').get('last');
+          request.onsuccess = () => resolve(request.result);
+          request.onerror = () => reject(request.error);
+          tx.oncomplete = () => db.close();
+          tx.onerror = () => db.close();
+        });
+      }
+      async function saveCurrentSettings() {
+        const fields = Object.fromEntries(SAVED_FIELDS.map(id => [id, $(id).value]));
+        await savedSnapshot('save', { fields, files: { ...savedFiles }, savedAt: Date.now() });
+        $('restoreBtn').style.setProperty('--saved-accent', fields.mainColor);
+        $('restoreBtn').style.setProperty('--saved-ink', contrastText(fields.mainColor));
+        $('restoreBtn').disabled = false;
+      }
+      async function restoreLastSettings() {
+        const snapshot = await savedSnapshot('load');
+        if (!snapshot?.fields) return;
+        for (const id of SAVED_FIELDS) {
+          if (typeof snapshot.fields[id] === 'string') $(id).value = snapshot.fields[id];
+        }
+        lastSeries = $('series').value;
+        for (const side of ['left', 'right']) {
+          const player = players.find(p => p.id === $(`${side}Player`).value);
+          savedFiles[side] = snapshot.files?.[side] || null;
+          state[`${side}Override`] = !!savedFiles[side];
+          const src = savedFiles[side] ? URL.createObjectURL(savedFiles[side]) : player?.photo;
+          try { state[`${side}Image`] = src ? await loadImage(src) : null; }
+          catch { state[`${side}Image`] = null; }
+          if (savedFiles[side]) URL.revokeObjectURL(src);
+          $(`${side}PhotoStatus`).textContent = savedFiles[side]?.name || '未選択';
+        }
+        savedFiles.bg = snapshot.files?.bg || null;
+        const bgSrc = savedFiles.bg && URL.createObjectURL(savedFiles.bg);
+        try { state.bgImage = bgSrc ? await loadImage(bgSrc) : null; }
+        catch { state.bgImage = null; }
+        if (bgSrc) URL.revokeObjectURL(bgSrc);
+        $('bgPhotoStatus').textContent = savedFiles.bg?.name || '未選択';
+        render();
+      }
 
       function hexToRgb(hex) {
         const v = hex.replace('#', '');
@@ -352,6 +439,33 @@
         const {r,g,b} = hexToRgb(hex);
         return `rgba(${r},${g},${b},${a})`;
       }
+      function luminance(r, g, b) {
+        const channel = value => {
+          const c = value / 255;
+          return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+        };
+        return 0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b);
+      }
+      function contrastText(hex) {
+        const {r, g, b} = hexToRgb(hex);
+        return luminance(r, g, b) > 0.179 ? '#000000' : '#ffffff';
+      }
+      function photoTextColor() {
+        try {
+          const { data, width, height } = ctx.getImageData(680, 80, 560, 620);
+          let total = 0, count = 0;
+          for (let y = 16; y < height; y += 32) {
+            for (let x = 16; x < width; x += 32) {
+              const i = (y * width + x) * 4;
+              total += luminance(data[i], data[i + 1], data[i + 2]);
+              count++;
+            }
+          }
+          return total / count > 0.179 ? '#000000' : '#ffffff';
+        } catch (error) {
+          return '#ffffff';
+        }
+      }
       function mix(hex, amount = 0.2) {
         const {r,g,b} = hexToRgb(hex);
         const t = amount >= 0 ? 255 : 0;
@@ -362,6 +476,12 @@
       }
       function syncSubColor() {
         $('subColor').value = mix($('mainColor').value, 0.32);
+      }
+      function normalizeHex(value) {
+        const hex = value.trim().replace(/^#/, '');
+        if (/^[0-9a-f]{3}$/i.test(hex)) return `#${[...hex].map(c => c + c).join('').toUpperCase()}`;
+        if (/^[0-9a-f]{6}$/i.test(hex)) return `#${hex.toUpperCase()}`;
+        return null;
       }
       let lastSeries = null;
       function applySeriesColors() {
@@ -435,9 +555,10 @@
         ctx.textBaseline = 'middle';
         if (alignTop) y += ctx.measureText(text).actualBoundingBoxAscent + strokeWidth / 2;
         if (shadowBlur) {
-          ctx.shadowColor = shadowColor;
-          ctx.shadowBlur = shadowBlur;
-          ctx.shadowOffsetY = shadowY || 0;
+          const isBlackText = fill.toLowerCase() === '#000000';
+          ctx.shadowColor = isBlackText ? 'rgba(255,255,255,0.4)' : shadowColor;
+          ctx.shadowBlur = isBlackText ? Math.min(shadowBlur, 12) : shadowBlur;
+          ctx.shadowOffsetY = isBlackText ? 0 : (shadowY || 0);
         }
         if (strokeWidth > 0) {
           ctx.lineJoin = 'round';
@@ -459,9 +580,10 @@
         ctx.scale(scaleX, 1);
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.shadowColor = shadowColor;
-        ctx.shadowBlur = shadowBlur;
-        ctx.shadowOffsetY = shadowY || 0;
+        const isBlackText = fill.toLowerCase() === '#000000';
+        ctx.shadowColor = isBlackText ? 'rgba(255,255,255,0.4)' : shadowColor;
+        ctx.shadowBlur = isBlackText ? Math.min(shadowBlur, 12) : shadowBlur;
+        ctx.shadowOffsetY = isBlackText ? 0 : (shadowY || 0);
         if (strokeWidth > 0) {
           ctx.lineJoin = 'round';
           ctx.miterLimit = 2;
@@ -566,9 +688,9 @@
         }
         ctx.restore();
       }
-      function drawCenterTitle(accent, isPhotoMode) {
+      function drawCenterTitle(accent, isPhotoMode, titleColor) {
         const series = $('series').value;
-        const stage = $('stage').value.trim() || '決勝';
+        const stage = $('stage').value.trim();
         const stagePrefix = $('stagePrefix').value.trim();
         const editionText = $('edition').value;
         // Align the edition with the portrait top; reserve separate bands for each line.
@@ -590,7 +712,7 @@
         function drawFinalMarks(y, color, outline) {
           ctx.save();
           ctx.fillStyle = color;
-          for (const x of [770, 1150]) {
+          for (const x of [745, 1175]) {
             ctx.beginPath();
             for (let i = 0; i < 10; i++) {
               const angle = -Math.PI / 2 + i * Math.PI / 5;
@@ -618,12 +740,12 @@
           drawImpactTextFit(stage, 960, 646, titleWidth, isFinal ? 112 : 104, 2, fill, stroke, textShadow, 18, 5, 'center', FONT_JP, 900, strokeWidth);
           if (isFinal) drawFinalMarks(646, fill, stroke);
         }
-        const titleColor = '#ffffff';
+        const titleOutline = titleColor === '#000000' ? '#ffffff' : accent;
         const shadow = 'rgba(0,0,0,0.35)';
 
         if (isPhotoMode) {
-          drawImpactTextFit(editionText, 960, titleYBase, titleWidth, 96, 2, titleColor, accent, shadow, 34, 10, 'center', FONT_JP, 900, 9, true);
-          drawSeries(titleColor, accent, shadow, 48, 14, 14);
+          drawImpactTextFit(editionText, 960, titleYBase, titleWidth, 96, 2, titleColor, titleOutline, shadow, 34, 10, 'center', FONT_JP, 900, 9, true);
+          drawSeries(titleColor, titleOutline, shadow, 48, 14, 14);
 
           ctx.save();
           ctx.lineCap = 'round';
@@ -638,10 +760,10 @@
           ctx.stroke();
           ctx.restore();
 
-          drawStage(titleColor, accent, shadow, 36, 10, 11);
+          drawStage(titleColor, titleOutline, shadow, 36, 10, 11);
         } else {
-          drawImpactTextFit(editionText, 960, titleYBase, titleWidth, 96, 2, titleColor, accent, shadow, 30, 10, 'center', FONT_JP, 900, 6, true);
-          drawSeries(titleColor, accent, shadow, 44, 14, 10);
+          drawImpactTextFit(editionText, 960, titleYBase, titleWidth, 96, 2, titleColor, titleOutline, shadow, 30, 10, 'center', FONT_JP, 900, 6, true);
+          drawSeries(titleColor, titleOutline, shadow, 44, 14, 10);
 
           ctx.save();
           ctx.lineCap = 'round';
@@ -656,15 +778,17 @@
           ctx.stroke();
           ctx.restore();
 
-          drawStage(titleColor, accent, shadow, 32, 10, 8);
+          drawStage(titleColor, titleOutline, shadow, 32, 10, 8);
         }
       }
-      function drawNameBands(accent, isPhotoMode) {
+      function drawNameBands(accent, isPhotoMode, backgroundInk) {
         const leftName = $('leftName').value.trim();
         const rightName = $('rightName').value.trim();
         const leftRoman = $('leftRoman').value.trim();
         const rightRoman = $('rightRoman').value.trim();
         const supplement = $('supplement').value.trim();
+        const nameInk = contrastText(accent);
+        const romanInk = contrastText($('subColor').value);
 
         // 当初のサムネイルに近い「下帯」構成。
         // 上段：日本語名を大きく、下段：ローマ字名。中央にVSを独立配置。
@@ -700,14 +824,14 @@
         ctx.beginPath();
         ctx.rect(leftX, bandY + 10, leftW, jpH - 20);
         ctx.clip();
-        drawImpactTextCondensed(leftName, leftX + leftW / 2, jpY, leftW - 28, 132, '#ffffff', alpha('#000000', 0.20), 'rgba(0,0,0,0.30)', 24, 8, FONT_JP, 900, 2);
+        drawImpactTextCondensed(leftName, leftX + leftW / 2, jpY, leftW - 28, 132, nameInk, alpha('#000000', 0.20), 'rgba(0,0,0,0.30)', 24, 8, FONT_JP, 900, 2);
         ctx.restore();
 
         ctx.save();
         ctx.beginPath();
         ctx.rect(rightX, bandY + 10, rightW, jpH - 20);
         ctx.clip();
-        drawImpactTextCondensed(rightName, rightX + rightW / 2, jpY, rightW - 28, 132, '#ffffff', alpha('#000000', 0.20), 'rgba(0,0,0,0.30)', 24, 8, FONT_JP, 900, 2);
+        drawImpactTextCondensed(rightName, rightX + rightW / 2, jpY, rightW - 28, 132, nameInk, alpha('#000000', 0.20), 'rgba(0,0,0,0.30)', 24, 8, FONT_JP, 900, 2);
         ctx.restore();
 
         // VS：白い角丸プレートに大会色の太字。
@@ -722,8 +846,8 @@
         ctx.font = '900 76px ' + FONT_LATIN;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillStyle = accent;
-        ctx.strokeStyle = accent;
+        ctx.fillStyle = contrastText(accent) === '#000000' ? '#000000' : accent;
+        ctx.strokeStyle = ctx.fillStyle;
         ctx.lineWidth = 1;
         ctx.lineJoin = 'round';
         const metrics = ctx.measureText('VS');
@@ -746,14 +870,14 @@
         ctx.beginPath();
         ctx.rect(leftX, romanY, leftW, romanH);
         ctx.clip();
-        drawImpactTextCondensed(leftRoman, leftX + leftW / 2, romanY + romanH / 2 + 1, leftW - 24, 64, '#ffffff', 'transparent', 'rgba(0,0,0,0.18)', 12, 3, FONT_LATIN, 800, 0);
+        drawImpactTextCondensed(leftRoman, leftX + leftW / 2, romanY + romanH / 2 + 1, leftW - 24, 64, romanInk, 'transparent', 'rgba(0,0,0,0.18)', 12, 3, FONT_LATIN, 800, 0);
         ctx.restore();
 
         ctx.save();
         ctx.beginPath();
         ctx.rect(rightX, romanY, rightW, romanH);
         ctx.clip();
-        drawImpactTextCondensed(rightRoman, rightX + rightW / 2, romanY + romanH / 2 + 1, rightW - 24, 64, '#ffffff', 'transparent', 'rgba(0,0,0,0.18)', 12, 3, FONT_LATIN, 800, 0);
+        drawImpactTextCondensed(rightRoman, rightX + rightW / 2, romanY + romanH / 2 + 1, rightW - 24, 64, romanInk, 'transparent', 'rgba(0,0,0,0.18)', 12, 3, FONT_LATIN, 800, 0);
         ctx.restore();
 
         // 補足情報は最下部の背景上に表示
@@ -765,8 +889,8 @@
             1760,
             64,
             28,
-            '#ffffff',
-            accent,
+            backgroundInk,
+            backgroundInk === '#000000' ? '#ffffff' : accent,
             'rgba(0,0,0,0.65)',
             8,
             0,
@@ -781,13 +905,14 @@
       function render() {
         const series = $('series').value;
         const accent = $('mainColor').value;
-        $('mainColorCode').textContent = accent.toUpperCase();
-        $('subColorCode').textContent = $('subColor').value.toUpperCase();
+        if (document.activeElement !== $('mainColorCode')) $('mainColorCode').value = accent.toUpperCase();
+        if (document.activeElement !== $('subColorCode')) $('subColorCode').value = $('subColor').value.toUpperCase();
         const bgMode = $('bgMode').value;
         const hasBackgroundPhoto = bgMode !== 'none';
         const showPlayerPhotos = bgMode !== 'photo';
         const photoDesign = hasBackgroundPhoto && state.bgImage && state.bgImage.naturalWidth;
         document.documentElement.style.setProperty('--accent', accent);
+        document.documentElement.style.setProperty('--accent-ink', contrastText(accent));
         $('photoControls').classList.toggle('hidden', !hasBackgroundPhoto);
 
         ctx.clearRect(0, 0, 1920, 1080);
@@ -805,16 +930,17 @@
         } else {
           drawBackgroundPattern(accent);
         }
+        const backgroundInk = photoDesign ? photoTextColor() : contrastText(hasBackgroundPhoto ? '#666666' : accent);
         if (showPlayerPhotos) {
           drawPortraitFrame(state.leftImage, 56, 162, 512, accent, 'left');
           drawPortraitFrame(state.rightImage, 1352, 162, 512, accent, 'right');
         }
 
-        drawCenterTitle(accent, photoDesign);
-        drawNameBands(accent, photoDesign);
+        drawCenterTitle(accent, photoDesign, backgroundInk);
+        drawNameBands(accent, photoDesign, backgroundInk);
         const sponsor = $('sponsor').value.trim();
         if (sponsor) {
-          drawImpactTextFit(sponsor, 960, 88, 1800, 96, 2, '#ffffff', accent, 'rgba(0,0,0,0.45)', 16, 4, 'center', FONT_JP, 900, 10);
+          drawImpactTextFit(sponsor, 960, 88, 1800, 96, 2, backgroundInk, backgroundInk === '#000000' ? '#ffffff' : accent, 'rgba(0,0,0,0.45)', 16, 4, 'center', FONT_JP, 900, 10);
         }
       }
 
@@ -833,6 +959,7 @@
           $(`${side}Roman`).value = '';
           state[`${side}Image`] = null;
           state[`${side}Override`] = false;
+          savedFiles[side] = null;
           render();
           return;
         }
@@ -843,6 +970,7 @@
             const img = await loadImage(p.photo);
             state[`${side}Image`] = img;
             state[`${side}Override`] = false;
+            savedFiles[side] = null;
           } catch (e) {
             state[`${side}Image`] = null;
           }
@@ -869,7 +997,7 @@
         }
       }
       function populate() {
-        Object.keys(SERIES).forEach((name) => {
+        [...Object.keys(SERIES), ...Object.keys(OPEN_SERIES)].forEach((name) => {
           const opt = document.createElement('option');
           opt.value = name;
           $('seriesList').appendChild(opt);
@@ -894,32 +1022,76 @@
         $('series').addEventListener('change', applySeriesColors);
         $('mainColor').addEventListener('input', () => { syncSubColor(); render(); });
         $('subColor').addEventListener('input', render);
+        for (const id of ['mainColor', 'subColor']) {
+          const code = $(`${id}Code`);
+          code.addEventListener('input', () => {
+            const hex = normalizeHex(code.value);
+            if (!hex) return;
+            $(id).value = hex;
+            if (id === 'mainColor') syncSubColor();
+            render();
+          });
+          code.addEventListener('blur', () => { code.value = $(id).value.toUpperCase(); });
+        }
         $('bgMode').addEventListener('change', render);
+        for (const id of ['series', 'stage']) {
+          const menu = $(`${id}Menu`);
+          const values = [...$(`${id}List`).options].map(option => option.value);
+          for (const value of values) {
+            const option = document.createElement('button');
+            option.type = 'button';
+            option.textContent = value;
+            option.addEventListener('click', () => {
+              if (id === 'series' && Object.prototype.hasOwnProperty.call(OPEN_SERIES, value)) {
+                $('series').value = value.replace(/オープン$/, '');
+                $('seriesSubtitle').value = 'オープン';
+                $('mainColor').value = OPEN_SERIES[value];
+                syncSubColor();
+              } else {
+                $(id).value = value;
+                if (id === 'series') $('seriesSubtitle').value = '';
+              }
+              menu.classList.add('hidden');
+              if (id === 'series') applySeriesColors(); else render();
+            });
+            menu.appendChild(option);
+          }
+        }
         document.querySelectorAll('[data-picker]').forEach((button) => {
           button.addEventListener('click', () => {
-            const input = $(button.dataset.picker);
-            input.focus();
-            if (typeof input.showPicker === 'function') input.showPicker();
+            const menu = $(`${button.dataset.picker}Menu`);
+            document.querySelectorAll('.combo-menu').forEach(other => {
+              if (other !== menu) other.classList.add('hidden');
+            });
+            menu.classList.toggle('hidden');
           });
+        });
+        document.addEventListener('click', (event) => {
+          if (!event.target.closest('.combo-input')) {
+            document.querySelectorAll('.combo-menu').forEach(menu => menu.classList.add('hidden'));
+          }
         });
 
         $('leftPlayer').addEventListener('change', () => applyPlayer('left', $('leftPlayer').value, true));
         $('rightPlayer').addEventListener('change', () => applyPlayer('right', $('rightPlayer').value, true));
         $('leftPhotoOverride').addEventListener('change', (e) => {
           $('leftPhotoStatus').textContent = e.target.files[0]?.name || '未選択';
-          loadFileImage(e.target.files[0], img => { state.leftImage = img; state.leftOverride = true; });
+          loadFileImage(e.target.files[0], img => { state.leftImage = img; state.leftOverride = true; savedFiles.left = e.target.files[0]; });
         });
         $('rightPhotoOverride').addEventListener('change', (e) => {
           $('rightPhotoStatus').textContent = e.target.files[0]?.name || '未選択';
-          loadFileImage(e.target.files[0], img => { state.rightImage = img; state.rightOverride = true; });
+          loadFileImage(e.target.files[0], img => { state.rightImage = img; state.rightOverride = true; savedFiles.right = e.target.files[0]; });
         });
         $('bgPhoto').addEventListener('change', (e) => {
           $('bgPhotoStatus').textContent = e.target.files[0]?.name || '未選択';
-          loadFileImage(e.target.files[0], img => { state.bgImage = img; });
+          loadFileImage(e.target.files[0], img => { state.bgImage = img; savedFiles.bg = e.target.files[0]; });
         });
+        $('restoreBtn').addEventListener('click', () => restoreLastSettings().catch(error => console.error('前回の設定を読み込めませんでした。', error)));
 
-        $('downloadBtn').addEventListener('click', () => {
+        $('downloadBtn').addEventListener('click', async () => {
           render();
+          try { await saveCurrentSettings(); }
+          catch (error) { console.warn('前回の設定を保存できませんでした。', error); }
           const series = [$('series').value.trim(), $('seriesSubtitle').value.trim()].filter(Boolean).join('');
           const stage = [$('stagePrefix').value.trim(), $('stage').value.trim()].filter(Boolean).join('') || 'match';
           const left = $('leftName').value.trim().replace(/\s+/g,'');
@@ -944,6 +1116,15 @@
         await loadGeneratedPlayers();
         populate();
         bind();
+        try {
+          const previous = await savedSnapshot('load');
+          $('restoreBtn').disabled = !previous;
+          if (previous?.fields?.mainColor) {
+            $('restoreBtn').style.setProperty('--saved-accent', previous.fields.mainColor);
+            $('restoreBtn').style.setProperty('--saved-ink', contrastText(previous.fields.mainColor));
+          }
+        }
+        catch (error) { console.warn('保存済み設定を確認できませんでした。', error); }
         applySeriesColors();
         await Promise.all([
           applyPlayer('left', $('leftPlayer').value, true),
@@ -956,4 +1137,17 @@
   </script>
 </body>
 </html>
+
+
+
+
+
+
+
+
+
+
+
+
+
   
