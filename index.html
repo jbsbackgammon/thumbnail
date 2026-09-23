@@ -306,12 +306,12 @@
     </aside>
   </div>
 
-  <script src="players.js?v=90"></script>
+  <script src="players.js?v=91"></script>
   <script>
     (() => {
       'use strict';
 
-      const APP_BUILD = '90';
+      const APP_BUILD = '91';
       console.info(`[JBS Thumbnail] build ${APP_BUILD}`);
 
       const SERIES = {
@@ -590,7 +590,6 @@
         function drawFinalMarks(y, color, outline) {
           ctx.save();
           ctx.fillStyle = color;
-          ctx.globalAlpha = 0.9;
           for (const x of [770, 1150]) {
             ctx.beginPath();
             for (let i = 0; i < 10; i++) {
@@ -957,3 +956,4 @@
   </script>
 </body>
 </html>
+  
