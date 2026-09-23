@@ -107,12 +107,18 @@
     .color-value .color-code { width: 104px; min-height: 40px; font-size: 13px; font-variant-numeric: tabular-nums; text-transform: uppercase; }
     input[type="range"] { min-height: 28px; padding: 0; }
     .hint { font-size: 11px; color: var(--muted); line-height: 1.55; margin-top: 4px; }
-    .preview-download {
+    .preview-actions {
       position: absolute;
       top: 24px;
       right: 24px;
       width: 100px;
       z-index: 2;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .preview-download {
+      width: 100px;
       border: 0;
       border-radius: 999px;
       padding: 10px 16px;
@@ -123,11 +129,7 @@
       box-shadow: 0 6px 18px color-mix(in srgb, var(--accent) 25%, transparent);
     }
     .preview-restore {
-      position: absolute;
-      top: 76px;
-      right: 24px;
       width: 100px;
-      z-index: 2;
       border: 1px solid var(--saved-accent, var(--accent));
       border-radius: 999px;
       padding: 8px 14px;
@@ -170,16 +172,22 @@
       .controls { grid-template-columns: minmax(0, 1fr); padding: 14px; }
       .preview-wrap { padding: 14px; }
       canvas { width: min(100%, 640px); }
-      .preview-download { top: 14px; right: 14px; padding: 9px 14px; }
-      .preview-restore { top: 62px; right: 14px; }
+      .preview-actions { top: 14px; right: 14px; }
+      .preview-download { padding: 9px 14px; }
     }
   </style>
 </head>
 <body>
   <div class="app">
     <main class="preview-wrap">
-      <button class="preview-download" id="downloadBtn" type="button">PNG保存</button>
-      <button class="preview-restore" id="restoreBtn" type="button" disabled>前回呼出</button>
+      <div class="preview-actions">
+        <button class="preview-download" id="downloadBtn" type="button">PNG出力</button>
+        <button class="preview-restore" type="button" data-history="0" disabled>呼出前</button>
+        <button class="preview-restore" type="button" data-history="1" disabled>呼出２</button>
+        <button class="preview-restore" type="button" data-history="2" disabled>呼出３</button>
+        <button class="preview-restore" type="button" data-history="3" disabled>呼出４</button>
+        <button class="preview-restore" type="button" data-history="4" disabled>呼出５</button>
+      </div>
       <div class="canvas-shell">
         <canvas id="canvas" width="1920" height="1080" aria-label="サムネイルプレビュー"></canvas>
       </div>
@@ -335,12 +343,12 @@
     </aside>
   </div>
 
-  <script src="players.js?v=104"></script>
+  <script src="players.js?v=106"></script>
   <script>
     (() => {
       'use strict';
 
-      const APP_BUILD = '104';
+      const APP_BUILD = '106';
       console.info(`[JBS Thumbnail] build ${APP_BUILD}`);
 
       const SERIES = {
@@ -383,26 +391,39 @@
           request.onerror = () => reject(request.error);
         });
       }
-      async function savedSnapshot(mode, value) {
+      async function savedSnapshot(mode, value, key = 'last') {
         const db = await openSavedDb();
         return new Promise((resolve, reject) => {
           const tx = db.transaction('snapshots', mode === 'save' ? 'readwrite' : 'readonly');
-          const request = mode === 'save' ? tx.objectStore('snapshots').put(value, 'last') : tx.objectStore('snapshots').get('last');
+          const request = mode === 'save' ? tx.objectStore('snapshots').put(value, key) : tx.objectStore('snapshots').get(key);
           request.onsuccess = () => resolve(request.result);
           request.onerror = () => reject(request.error);
           tx.oncomplete = () => db.close();
           tx.onerror = () => db.close();
         });
       }
+      async function loadHistory() {
+        const history = await savedSnapshot('load', undefined, 'history');
+        if (Array.isArray(history)) return history;
+        const previous = await savedSnapshot('load');
+        return previous?.fields ? [previous] : [];
+      }
+      function refreshHistoryButtons(history) {
+        document.querySelectorAll('[data-history]').forEach(button => {
+          const snapshot = history[Number(button.dataset.history)];
+          button.disabled = !snapshot;
+          button.style.setProperty('--saved-accent', snapshot?.fields?.mainColor || '#000000');
+          button.style.setProperty('--saved-ink', contrastText(snapshot?.fields?.mainColor || '#000000'));
+        });
+      }
       async function saveCurrentSettings() {
         const fields = Object.fromEntries(SAVED_FIELDS.map(id => [id, $(id).value]));
-        await savedSnapshot('save', { fields, files: { ...savedFiles }, savedAt: Date.now() });
-        $('restoreBtn').style.setProperty('--saved-accent', fields.mainColor);
-        $('restoreBtn').style.setProperty('--saved-ink', contrastText(fields.mainColor));
-        $('restoreBtn').disabled = false;
+        const history = [{ fields, files: { ...savedFiles }, savedAt: Date.now() }, ...await loadHistory()].slice(0, 5);
+        await savedSnapshot('save', history, 'history');
+        refreshHistoryButtons(history);
       }
-      async function restoreLastSettings() {
-        const snapshot = await savedSnapshot('load');
+      async function restoreHistory(index) {
+        const snapshot = (await loadHistory())[index];
         if (!snapshot?.fields) return;
         for (const id of SAVED_FIELDS) {
           if (typeof snapshot.fields[id] === 'string') $(id).value = snapshot.fields[id];
@@ -449,22 +470,6 @@
       function contrastText(hex) {
         const {r, g, b} = hexToRgb(hex);
         return luminance(r, g, b) > 0.179 ? '#000000' : '#ffffff';
-      }
-      function photoTextColor() {
-        try {
-          const { data, width, height } = ctx.getImageData(680, 80, 560, 620);
-          let total = 0, count = 0;
-          for (let y = 16; y < height; y += 32) {
-            for (let x = 16; x < width; x += 32) {
-              const i = (y * width + x) * 4;
-              total += luminance(data[i], data[i + 1], data[i + 2]);
-              count++;
-            }
-          }
-          return total / count > 0.179 ? '#000000' : '#ffffff';
-        } catch (error) {
-          return '#ffffff';
-        }
       }
       function mix(hex, amount = 0.2) {
         const {r,g,b} = hexToRgb(hex);
@@ -788,7 +793,7 @@
         const rightRoman = $('rightRoman').value.trim();
         const supplement = $('supplement').value.trim();
         const nameInk = contrastText(accent);
-        const romanInk = contrastText($('subColor').value);
+        const romanInk = contrastText(accent);
 
         // 当初のサムネイルに近い「下帯」構成。
         // 上段：日本語名を大きく、下段：ローマ字名。中央にVSを独立配置。
@@ -930,7 +935,7 @@
         } else {
           drawBackgroundPattern(accent);
         }
-        const backgroundInk = photoDesign ? photoTextColor() : contrastText(hasBackgroundPhoto ? '#666666' : accent);
+        const backgroundInk = contrastText(accent);
         if (showPlayerPhotos) {
           drawPortraitFrame(state.leftImage, 56, 162, 512, accent, 'left');
           drawPortraitFrame(state.rightImage, 1352, 162, 512, accent, 'right');
@@ -1086,7 +1091,9 @@
           $('bgPhotoStatus').textContent = e.target.files[0]?.name || '未選択';
           loadFileImage(e.target.files[0], img => { state.bgImage = img; savedFiles.bg = e.target.files[0]; });
         });
-        $('restoreBtn').addEventListener('click', () => restoreLastSettings().catch(error => console.error('前回の設定を読み込めませんでした。', error)));
+        document.querySelectorAll('[data-history]').forEach(button => {
+          button.addEventListener('click', () => restoreHistory(Number(button.dataset.history)).catch(error => console.error('保存した設定を読み込めませんでした。', error)));
+        });
 
         $('downloadBtn').addEventListener('click', async () => {
           render();
@@ -1117,12 +1124,7 @@
         populate();
         bind();
         try {
-          const previous = await savedSnapshot('load');
-          $('restoreBtn').disabled = !previous;
-          if (previous?.fields?.mainColor) {
-            $('restoreBtn').style.setProperty('--saved-accent', previous.fields.mainColor);
-            $('restoreBtn').style.setProperty('--saved-ink', contrastText(previous.fields.mainColor));
-          }
+          refreshHistoryButtons(await loadHistory());
         }
         catch (error) { console.warn('保存済み設定を確認できませんでした。', error); }
         applySeriesColors();
@@ -1137,6 +1139,8 @@
   </script>
 </body>
 </html>
+
+
 
 
 
