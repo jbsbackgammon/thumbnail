@@ -371,7 +371,7 @@
     (() => {
       'use strict';
 
-      const APP_BUILD = '109';
+      const APP_BUILD = '110';
       console.info(`[JBS Thumbnail] build ${APP_BUILD}`);
 
       const SERIES = {
@@ -998,7 +998,11 @@
         drawNameBands(accent, photoDesign, backgroundInk);
         const sponsor = $('sponsor').value.trim();
         if (sponsor) {
-          drawImpactTextFit(sponsor, 960, 88, 1800, 96, 2, backgroundInk, backgroundInk === '#000000' ? '#ffffff' : accent, 'rgba(0,0,0,0.45)', 16, 4, 'center', FONT_JP, 900, 10);
+          // 冠名の影は「回次等」と同じスタイルに統一する。
+          const titleShadow = 'rgba(0,0,0,0.35)';
+          const editionShadowBlur = photoDesign ? 34 : 30;
+          const editionShadowY = 10;
+          drawImpactTextFit(sponsor, 960, 88, 1800, 96, 2, backgroundInk, backgroundInk === '#000000' ? '#ffffff' : accent, titleShadow, editionShadowBlur, editionShadowY, 'center', FONT_JP, 900, 10);
         }
       }
 
