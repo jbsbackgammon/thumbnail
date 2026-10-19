@@ -367,28 +367,33 @@
     </aside>
   </div>
 
+  <script src="https://jbsbackgammon.github.io/common/brand.js"></script>
   <script>
     (() => {
       'use strict';
 
-      const APP_BUILD = '110';
+      const APP_BUILD = '111';
       console.info(`[JBS Thumbnail] build ${APP_BUILD}`);
 
-      const SERIES = {
-        '日本選手権': '#3C3C3C',
-        '盤聖戦': '#6B0D2F',
-        '名人戦': '#6B670D',
-        '王位戦': '#0D6B2F',
-        '賽王戦': '#0D236B',
-        '棋聖戦': '#6B230D',
-        '女王戦': '#6B0D5B',
-        '新鋭戦': '#0D676B'
-      };
-      const OPEN_SERIES = {
-        '大阪オープン': '#F8B62B',
-        '東京オープン': '#009F40',
-        '名古屋オープン': '#0C284D'
-      };
+      // common が取得できない場合だけ使う従来マスタ。
+      // 通常時の正本は https://jbsbackgammon.github.io/common/data/brand.json 。
+      const FALLBACK_TOURNAMENTS = [
+        ['japan-championship', '日本選手権', 'title', '#3C3C3C'],
+        ['bansei', '盤聖戦', 'title', '#6B0D2F'],
+        ['meijin', '名人戦', 'title', '#6B670D'],
+        ['oui', '王位戦', 'title', '#0D6B2F'],
+        ['saiou', '賽王戦', 'title', '#0D236B'],
+        ['kisei', '棋聖戦', 'exchange', '#6B230D'],
+        ['queen', '女王戦', 'exchange', '#6B0D5B'],
+        ['shin-ei', '新鋭戦', 'exchange', '#0D676B'],
+        ['osaka-open', '大阪オープン', 'open', '#F8B62B'],
+        ['tokyo-open', '東京オープン', 'open', '#009F40'],
+        ['nagoya-open', '名古屋オープン', 'open', '#0C284D']
+      ].map(([id, name, category, color], index) => ({
+        id, name, nameEn: '', category, color, subColor: null, order: index + 1, edition: ''
+      }));
+      let tournaments = FALLBACK_TOURNAMENTS.map(entry => ({ ...entry }));
+      let commonBrandReady = false;
 
       let players = [];
       const MEMBER_BASE_URL = 'https://jbsbackgammon.github.io/member/';
@@ -481,7 +486,7 @@
         for (const id of SAVED_FIELDS) {
           if (typeof snapshot.fields[id] === 'string') $(id).value = snapshot.fields[id];
         }
-        lastSeries = $('series').value;
+        lastTournamentKey = tournamentKey(findTournamentForCurrentFields()) || $('series').value.trim();
         for (const side of ['left', 'right']) {
           const player = players.find(p => p.id === $(`${side}Player`).value);
           savedFiles[side] = snapshot.files?.[side] || null;
@@ -520,9 +525,15 @@
         };
         return 0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b);
       }
-      function contrastText(hex) {
+      function fallbackContrastText(hex) {
         const {r, g, b} = hexToRgb(hex);
         return luminance(r, g, b) > 0.179 ? '#000000' : '#ffffff';
+      }
+      function contrastText(hex) {
+        if (commonBrandReady && window.JBSBrand?.getTextColor) {
+          return window.JBSBrand.getTextColor(hex, fallbackContrastText(hex)) || fallbackContrastText(hex);
+        }
+        return fallbackContrastText(hex);
       }
       function mix(hex, amount = 0.2) {
         const {r,g,b} = hexToRgb(hex);
@@ -532,8 +543,14 @@
         const toHex = (x) => c(x).toString(16).padStart(2, '0');
         return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
       }
+      function makeSubColor(mainColor) {
+        if (commonBrandReady && window.JBSBrand?.makeSubColor) {
+          return window.JBSBrand.makeSubColor(mainColor) || mix(mainColor, 0.32);
+        }
+        return mix(mainColor, 0.32);
+      }
       function syncSubColor() {
-        $('subColor').value = mix($('mainColor').value, 0.32);
+        $('subColor').value = makeSubColor($('mainColor').value);
       }
       function normalizeHex(value) {
         const hex = value.trim().replace(/^#/, '');
@@ -541,17 +558,65 @@
         if (/^[0-9a-f]{6}$/i.test(hex)) return `#${hex.toUpperCase()}`;
         return null;
       }
-      let lastSeries = null;
-      function applySeriesColors() {
-        const series = $('series').value;
-        if (series !== lastSeries) {
-          lastSeries = series;
-          if (Object.prototype.hasOwnProperty.call(SERIES, series)) {
-            $('mainColor').value = SERIES[series];
-            syncSubColor();
+      async function loadCommonBrand() {
+        if (!window.JBSBrand?.load) {
+          console.warn('[JBS Thumbnail] common/brand.js を読み込めないため内蔵マスタを使用します。');
+          return;
+        }
+        try {
+          await window.JBSBrand.load();
+          const source = window.JBSBrand.getTournaments();
+          if (!Array.isArray(source) || !source.length) throw new Error('大会マスタが空です。');
+          tournaments = source;
+          commonBrandReady = true;
+          console.info(`[JBS Thumbnail] common の大会マスタ ${source.length}件を読み込みました。`);
+        } catch (error) {
+          commonBrandReady = false;
+          tournaments = FALLBACK_TOURNAMENTS.map(entry => ({ ...entry }));
+          console.warn('[JBS Thumbnail] common の取得に失敗したため内蔵マスタを使用します。', error);
+        }
+      }
+      function tournamentKey(master) {
+        return master ? (master.id || master.name || '') : '';
+      }
+      function findTournament(query) {
+        const key = String(query || '').trim().toLocaleLowerCase();
+        if (!key) return null;
+        return tournaments.find(entry => [entry.id, entry.name, entry.nameEn]
+          .filter(Boolean)
+          .some(value => String(value).trim().toLocaleLowerCase() === key)) || null;
+      }
+      function findTournamentForCurrentFields() {
+        const series = $('series').value.trim();
+        const subtitle = $('seriesSubtitle').value.trim();
+        return findTournament(series)
+          || findTournament(`${series}${subtitle}`)
+          || findTournament(`${series}オープン`);
+      }
+      function applyTournamentMaster(master, { force = false, normalizeOpen = false, clearSubtitle = false } = {}) {
+        const key = tournamentKey(master) || $('series').value.trim();
+        if (!force && key === lastTournamentKey) {
+          render();
+          return;
+        }
+        lastTournamentKey = key;
+        if (master) {
+          if (normalizeOpen && master.category === 'open' && /オープン$/.test(master.name)) {
+            $('series').value = master.name.replace(/オープン$/, '');
+            $('seriesSubtitle').value = 'オープン';
+          } else if (clearSubtitle && master.category !== 'open') {
+            $('seriesSubtitle').value = '';
           }
+          if (master.color) $('mainColor').value = master.color;
+          $('subColor').value = master.subColor || makeSubColor(master.color || $('mainColor').value);
+          if (master.edition) $('edition').value = master.edition;
         }
         render();
+      }
+      let lastTournamentKey = null;
+      function applySeriesMaster() {
+        const master = findTournamentForCurrentFields();
+        applyTournamentMaster(master, { normalizeOpen: true, clearSubtitle: true });
       }
       function roundedRect(x, y, w, h, r) {
         const rr = Math.min(r, w / 2, h / 2);
@@ -1228,9 +1293,9 @@
         }
       }
       function populate() {
-        [...Object.keys(SERIES), ...Object.keys(OPEN_SERIES)].forEach((name) => {
+        tournaments.forEach((master) => {
           const opt = document.createElement('option');
-          opt.value = name;
+          opt.value = master.name;
           $('seriesList').appendChild(opt);
         });
         ['leftPlayer','rightPlayer'].forEach((id) => {
@@ -1249,8 +1314,8 @@
       function bind() {
         ['sponsor','seriesSubtitle','edition','stagePrefix','stage','supplement','bgMode','bgX','bgY','bgScale','bgShade','leftName','leftRoman','rightName','rightRoman']
           .forEach(id => $(id).addEventListener('input', render));
-        $('series').addEventListener('input', applySeriesColors);
-        $('series').addEventListener('change', applySeriesColors);
+        $('series').addEventListener('input', applySeriesMaster);
+        $('series').addEventListener('change', applySeriesMaster);
         $('mainColor').addEventListener('input', () => { syncSubColor(); render(); });
         $('subColor').addEventListener('input', render);
         for (const id of ['mainColor', 'subColor']) {
@@ -1273,17 +1338,21 @@
             option.type = 'button';
             option.textContent = value;
             option.addEventListener('click', () => {
-              if (id === 'series' && Object.prototype.hasOwnProperty.call(OPEN_SERIES, value)) {
-                $('series').value = value.replace(/オープン$/, '');
-                $('seriesSubtitle').value = 'オープン';
-                $('mainColor').value = OPEN_SERIES[value];
-                syncSubColor();
+              if (id === 'series') {
+                const master = findTournament(value);
+                if (master?.category === 'open' && /オープン$/.test(master.name)) {
+                  $('series').value = master.name.replace(/オープン$/, '');
+                  $('seriesSubtitle').value = 'オープン';
+                } else {
+                  $('series').value = value;
+                  $('seriesSubtitle').value = '';
+                }
+                applyTournamentMaster(master, { force: true });
               } else {
                 $(id).value = value;
-                if (id === 'series') $('seriesSubtitle').value = '';
+                render();
               }
               menu.classList.add('hidden');
-              if (id === 'series') applySeriesColors(); else render();
             });
             menu.appendChild(option);
           }
@@ -1349,14 +1418,14 @@
       }
 
       async function init() {
-        await loadMemberPlayers();
+        await Promise.all([loadCommonBrand(), loadMemberPlayers()]);
         populate();
         bind();
         try {
           refreshHistoryMenu(await loadHistory());
         }
         catch (error) { console.warn('保存済み設定を確認できませんでした。', error); }
-        applySeriesColors();
+        applySeriesMaster();
         await Promise.all([
           applyPlayer('left', $('leftPlayer').value, true),
           applyPlayer('right', $('rightPlayer').value, true)
