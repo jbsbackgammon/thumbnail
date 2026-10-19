@@ -372,7 +372,7 @@
     (() => {
       'use strict';
 
-      const APP_BUILD = '111';
+      const APP_BUILD = '112';
       console.info(`[JBS Thumbnail] build ${APP_BUILD}`);
 
       // common が取得できない場合だけ使う従来マスタ。
@@ -394,6 +394,18 @@
       }));
       let tournaments = FALLBACK_TOURNAMENTS.map(entry => ({ ...entry }));
       let commonBrandReady = false;
+      const STAGE_ENGLISH = Object.freeze({
+        '決勝': 'FINAL',
+        '準決勝': 'SEMIFINAL',
+        '準々決勝': 'QUARTERFINAL',
+        '１回戦': 'ROUND 1',
+        '２回戦': 'ROUND 2',
+        '３回戦': 'ROUND 3',
+        '本戦１回戦': 'MAIN DRAW ROUND 1',
+        '本戦２回戦': 'MAIN DRAW ROUND 2',
+        '本戦３回戦': 'MAIN DRAW ROUND 3'
+      });
+      let lastAutoSupplement = '';
 
       let players = [];
       const MEMBER_BASE_URL = 'https://jbsbackgammon.github.io/member/';
@@ -593,6 +605,26 @@
           || findTournament(`${series}${subtitle}`)
           || findTournament(`${series}オープン`);
       }
+      function syncSupplementFromSelections({ force = false } = {}) {
+        const master = findTournamentForCurrentFields();
+        const stage = $('stage').value.trim();
+        const stageEn = STAGE_ENGLISH[stage];
+        const current = $('supplement').value.trim();
+        const canReplace = force || !current || current === lastAutoSupplement;
+
+        if (!master?.nameEn || !stageEn) {
+          if (canReplace && current === lastAutoSupplement) {
+            $('supplement').value = '';
+            lastAutoSupplement = '';
+          }
+          return;
+        }
+        if (!canReplace) return;
+
+        const value = `JBS ${master.nameEn} ${stageEn}`.replace(/\s+/g, ' ').trim();
+        $('supplement').value = value;
+        lastAutoSupplement = value;
+      }
       function applyTournamentMaster(master, { force = false, normalizeOpen = false, clearSubtitle = false } = {}) {
         const key = tournamentKey(master) || $('series').value.trim();
         if (!force && key === lastTournamentKey) {
@@ -611,6 +643,7 @@
           $('subColor').value = master.subColor || makeSubColor(master.color || $('mainColor').value);
           if (master.edition) $('edition').value = master.edition;
         }
+        syncSupplementFromSelections();
         render();
       }
       let lastTournamentKey = null;
@@ -1312,8 +1345,14 @@
         });
       }
       function bind() {
-        ['sponsor','seriesSubtitle','edition','stagePrefix','stage','supplement','bgMode','bgX','bgY','bgScale','bgShade','leftName','leftRoman','rightName','rightRoman']
+        ['sponsor','seriesSubtitle','edition','stagePrefix','bgMode','bgX','bgY','bgScale','bgShade','leftName','leftRoman','rightName','rightRoman']
           .forEach(id => $(id).addEventListener('input', render));
+        $('supplement').addEventListener('input', () => {
+          if ($('supplement').value.trim() !== lastAutoSupplement) lastAutoSupplement = '';
+          render();
+        });
+        $('stage').addEventListener('input', () => { syncSupplementFromSelections(); render(); });
+        $('stage').addEventListener('change', () => { syncSupplementFromSelections(); render(); });
         $('series').addEventListener('input', applySeriesMaster);
         $('series').addEventListener('change', applySeriesMaster);
         $('mainColor').addEventListener('input', () => { syncSubColor(); render(); });
@@ -1350,6 +1389,7 @@
                 applyTournamentMaster(master, { force: true });
               } else {
                 $(id).value = value;
+                syncSupplementFromSelections();
                 render();
               }
               menu.classList.add('hidden');
