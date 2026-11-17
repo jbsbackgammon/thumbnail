@@ -372,7 +372,7 @@
     (() => {
       'use strict';
 
-      const APP_BUILD = '112';
+      const APP_BUILD = '113';
       console.info(`[JBS Thumbnail] build ${APP_BUILD}`);
 
       // common が取得できない場合だけ使う従来マスタ。
@@ -1457,6 +1457,82 @@
         });
       }
 
+      // Import the current overlay's values after this editor is fully ready.
+      // Images travel through postMessage instead of oversized URL parameters.
+      async function importOverlayPlayer(side, name, roman, rawPhoto) {
+        const normalized = value => String(value || '').replace(/[\s\u3000]+/g, '');
+        const player = players.find(item => normalized(item.name) === normalized(name));
+        const playerSelect = $(side + 'Player');
+        const selected = player?.id || '';
+        playerSelect.value = [...playerSelect.options].some(option => option.value === selected) ? selected : '';
+        $(side + 'Name').value = name || '';
+        $(side + 'Roman').value = roman || player?.roman || '';
+        savedFiles[side] = null;
+        state[side + 'Override'] = false;
+        $(side + 'PhotoStatus').textContent = '';
+        const photo = typeof rawPhoto === 'string'
+          && /^(data:image\/|https:\/\/jbsbackgammon\.github\.io\/member\/)/i.test(rawPhoto)
+          ? rawPhoto : (player?.photo || '');
+        if (photo.startsWith('data:image/')) {
+          try {
+            const response = await fetch(photo);
+            const blob = await response.blob();
+            const extension = blob.type === 'image/png' ? 'png' : blob.type === 'image/jpeg' ? 'jpg' : 'webp';
+            savedFiles[side] = new File([blob], 'overlay_' + side + '.' + extension, { type: blob.type || 'image/webp' });
+            state[side + 'Override'] = true;
+            $(side + 'PhotoStatus').textContent = '配信盤面から取込';
+          } catch (error) {
+            console.warn('選手写真の保存用変換に失敗しました。', error);
+          }
+        }
+        try { state[side + 'Image'] = photo ? await loadImage(photo) : null; }
+        catch (error) {
+          state[side + 'Image'] = null;
+          console.warn('配信盤面の選手写真を読み込めませんでした。', error);
+        }
+      }
+
+      async function applyOverlayTransfer(fields) {
+        if (!fields || typeof fields !== 'object' || Array.isArray(fields)) return;
+        const text = value => typeof value === 'string' ? value : '';
+        const title = text(fields.series).trim();
+        const master = findTournament(title);
+        const splitOpen = master?.category === 'open' && master.name === title && /オープン$/.test(title);
+        $('edition').value = text(fields.edition);
+        $('series').value = splitOpen ? title.replace(/オープン$/, '') : title;
+        $('seriesSubtitle').value = splitOpen ? 'オープン' : '';
+        $('stage').value = text(fields.stage);
+        $('stagePrefix').value = '';
+        $('sponsor').value = '';
+        $('supplement').value = '';
+        lastAutoSupplement = '';
+        const color = normalizeHex(text(fields.mainColor)) || master?.color || $('mainColor').value;
+        $('mainColor').value = color;
+        $('subColor').value = normalizeHex(text(fields.subColor)) || makeSubColor(color);
+        // Keep custom editions and theme colors instead of restoring presets.
+        lastTournamentKey = tournamentKey(master) || $('series').value.trim();
+        syncSupplementFromSelections({ force: true });
+        await Promise.all([
+          importOverlayPlayer('left', text(fields.leftName), text(fields.leftRoman), fields.leftPhoto),
+          importOverlayPlayer('right', text(fields.rightName), text(fields.rightRoman), fields.rightPhoto)
+        ]);
+        render();
+      }
+
+      function enableOverlayTransfer() {
+        const query = new URLSearchParams(location.search);
+        const token = query.get('transfer');
+        if (query.get('from') !== 'overlay' || !/^[A-Za-z0-9_-]{8,100}$/.test(token || '') || !window.opener) return;
+        window.addEventListener('message', event => {
+          if (event.origin !== location.origin || event.source !== window.opener
+            || event.data?.type !== 'jbs-overlay-thumbnail-data' || event.data.token !== token) return;
+          applyOverlayTransfer(event.data.fields).catch(error => {
+            console.error('配信盤面の入力内容をサムネイルへ反映できませんでした。', error);
+          });
+        });
+        window.opener.postMessage({ type: 'jbs-thumbnail-ready', token }, location.origin);
+      }
+
       async function init() {
         await Promise.all([loadCommonBrand(), loadMemberPlayers()]);
         populate();
@@ -1471,6 +1547,7 @@
           applyPlayer('right', $('rightPlayer').value, true)
         ]);
         render();
+        enableOverlayTransfer();
       }
       init();
     })();
