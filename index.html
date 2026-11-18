@@ -11,9 +11,9 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="https://jbsbackgammon.github.io/common/ui.css?v=43" />
+  <link rel="stylesheet" href="https://jbsbackgammon.github.io/common/ui.css?v=44" />
 </head>
-<body class="jbsui jbsui-tool-page">
+<body class="jbsui jbsui-tool-page jbsui-tool-page--fit-first-view">
     <aside class="jbsui-panel">
       <div class="jbsui-actions">
         <button class="jbsui-button jbsui-button--primary jbsui-button--primary-action" id="downloadBtn" type="button">PNG出力</button>
@@ -177,7 +177,7 @@
         document.documentElement.removeAttribute('data-jbsui-keyboard-focus');
       });
 
-      const APP_BUILD = '132';
+      const APP_BUILD = '133';
       console.info(`[JBS Thumbnail] build ${APP_BUILD}`);
 
       // common が取得できない場合だけ使う従来マスタ。
