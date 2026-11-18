@@ -20,46 +20,36 @@
           <div class="jbsui-popover-menu hidden" id="historyMenu"></div>
         </div>
       </div>
-      <section class="jbsui-grid jbsui-grid--5">
+      <section class="jbsui-grid jbsui-grid--3">
         <div class="jbsui-field">
           <label for="edition">回次等</label>
           <input id="edition" type="text" value="" />
         </div>
         <div class="jbsui-field">
           <label for="series">大会名</label>
-          <div class="jbsui-combo-input">
-            <input id="series" value="" placeholder="未入力" />
-            <button type="button" data-picker="series" aria-label="大会名の候補を表示">選択</button>
-            <div class="jbsui-combo-menu hidden" id="seriesMenu"></div>
+          <div class="jbsui-preset-input">
+            <select id="seriesPreset" aria-label="大会名のプリセット"><option value="">選択</option></select>
+            <input id="series" value="" />
           </div>
-          <datalist id="seriesList"></datalist>
-        </div>
-        <div class="jbsui-field">
-          <label for="seriesSubtitle">大会名（小）</label>
-          <input id="seriesSubtitle" type="text" value="" />
         </div>
         <div class="jbsui-field">
           <label for="stage">試合名</label>
-          <div class="jbsui-combo-input">
-            <input id="stage" value="" placeholder="未入力" />
-            <button type="button" data-picker="stage" aria-label="試合名の候補を表示">選択</button>
-            <div class="jbsui-combo-menu hidden" id="stageMenu"></div>
+          <div class="jbsui-preset-input">
+            <select id="stagePreset" aria-label="試合名のプリセット">
+              <option value="">選択</option>
+              <option>決勝</option>
+              <option>準決勝</option>
+              <option>準々決勝</option>
+              <option>３回戦</option>
+              <option>２回戦</option>
+              <option>１回戦</option>
+              <option>プレーオフ</option>
+              <option>本戦３回戦</option>
+              <option>本戦２回戦</option>
+              <option>本戦１回戦</option>
+            </select>
+            <input id="stage" value="" />
           </div>
-          <datalist id="stageList">
-            <option value="決勝"></option>
-            <option value="準決勝"></option>
-            <option value="準々決勝"></option>
-            <option value="１回戦"></option>
-            <option value="２回戦"></option>
-            <option value="３回戦"></option>
-            <option value="本戦１回戦"></option>
-            <option value="本戦２回戦"></option>
-            <option value="本戦３回戦"></option>
-          </datalist>
-        </div>
-        <div class="jbsui-field">
-          <label for="stagePrefix">試合名（小）</label>
-          <input id="stagePrefix" type="text" value="" />
         </div>
       </section>
 
@@ -94,7 +84,11 @@
         </div>
       </div>
 
-      <section class="jbsui-grid jbsui-grid--2">
+      <section class="jbsui-grid jbsui-grid--3">
+        <div class="jbsui-field">
+          <label for="stagePrefix">試合名（小）</label>
+          <input id="stagePrefix" type="text" value="" />
+        </div>
         <div class="jbsui-field">
           <label for="sponsor">冠名</label>
           <input id="sponsor" type="text" value="" />
@@ -177,7 +171,7 @@
         document.documentElement.removeAttribute('data-jbsui-keyboard-focus');
       });
 
-      const APP_BUILD = '122';
+      const APP_BUILD = '123';
       console.info(`[JBS Thumbnail] build ${APP_BUILD}`);
 
       // common が取得できない場合だけ使う従来マスタ。
@@ -230,7 +224,7 @@
         leftOverride: false,
         rightOverride: false
       };
-      const SAVED_FIELDS = ['edition','series','seriesSubtitle','stage','stagePrefix','leftPlayer','leftName','leftRoman','rightPlayer','rightName','rightRoman','sponsor','supplement','bgMode','bgX','bgY','bgScale','bgShade','mainColor','subColor'];
+      const SAVED_FIELDS = ['edition','series','stage','stagePrefix','leftPlayer','leftName','leftRoman','rightPlayer','rightName','rightRoman','sponsor','supplement','bgMode','bgX','bgY','bgScale','bgShade','mainColor','subColor'];
       const savedFiles = { left: null, right: null, bg: null };
       function openSavedDb() {
         return new Promise((resolve, reject) => {
@@ -300,6 +294,9 @@
         if (!snapshot?.fields) return;
         for (const id of SAVED_FIELDS) {
           if (typeof snapshot.fields[id] === 'string') $(id).value = snapshot.fields[id];
+        }
+        if (snapshot.fields.seriesSubtitle && !$('series').value.endsWith(snapshot.fields.seriesSubtitle)) {
+          $('series').value += snapshot.fields.seriesSubtitle;
         }
         lastTournamentKey = tournamentKey(findTournamentForCurrentFields()) || $('series').value.trim();
         for (const side of ['left', 'right']) {
@@ -409,9 +406,7 @@
       }
       function findTournamentForCurrentFields() {
         const series = $('series').value.trim();
-        const subtitle = $('seriesSubtitle').value.trim();
         return findTournament(series)
-          || findTournament(`${series}${subtitle}`)
           || findTournament(`${series}オープン`);
       }
       function syncSupplementFromSelections({ force = false } = {}) {
@@ -434,7 +429,7 @@
         $('supplement').value = value;
         lastAutoSupplement = value;
       }
-      function applyTournamentMaster(master, { force = false, normalizeOpen = false, clearSubtitle = false } = {}) {
+      function applyTournamentMaster(master, { force = false } = {}) {
         const key = tournamentKey(master) || $('series').value.trim();
         if (!force && key === lastTournamentKey) {
           render();
@@ -442,12 +437,7 @@
         }
         lastTournamentKey = key;
         if (master) {
-          if (normalizeOpen && master.category === 'open' && /オープン$/.test(master.name)) {
-            $('series').value = master.name.replace(/オープン$/, '');
-            $('seriesSubtitle').value = 'オープン';
-          } else if (clearSubtitle && master.category !== 'open') {
-            $('seriesSubtitle').value = '';
-          }
+          $('series').value = master.name;
           if (master.color) $('mainColor').value = master.color;
           $('subColor').value = master.subColor || makeSubColor(master.color || $('mainColor').value);
           if (master.edition) $('edition').value = master.edition;
@@ -458,7 +448,7 @@
       let lastTournamentKey = null;
       function applySeriesMaster() {
         const master = findTournamentForCurrentFields();
-        applyTournamentMaster(master, { normalizeOpen: true, clearSubtitle: true });
+        applyTournamentMaster(master);
       }
       function roundedRect(x, y, w, h, r) {
         const rr = Math.min(r, w / 2, h / 2);
@@ -654,14 +644,16 @@
         ctx.restore();
       }
       function drawCenterTitle(accent, isPhotoMode, titleColor) {
-        const series = $('series').value;
+        const rawSeries = $('series').value.trim();
+        const splitOpen = /オープン$/.test(rawSeries);
+        const series = splitOpen ? rawSeries.replace(/オープン$/, '') : rawSeries;
+        const subtitle = splitOpen ? 'オープン' : '';
         const stage = $('stage').value.trim();
         const stagePrefix = $('stagePrefix').value.trim();
         const editionText = $('edition').value;
         // Align the edition with the portrait top; reserve separate bands for each line.
         const titleYBase = 142;
         const titleWidth = 740;
-        const subtitle = $('seriesSubtitle').value.trim();
         const seriesY = subtitle ? 340 : 374;
         const seriesSize = subtitle ? 176 : 240;
         function drawSeries(fill, stroke, textShadow, blur, offset, strokeWidth) {
@@ -1153,10 +1145,10 @@
         }
       }
       function populate() {
+        const seriesPreset = $('seriesPreset');
+        seriesPreset.replaceChildren(new Option('選択', ''));
         tournaments.forEach((master) => {
-          const opt = document.createElement('option');
-          opt.value = master.name;
-          $('seriesList').appendChild(opt);
+          seriesPreset.add(new Option(master.name, master.name));
         });
         ['leftPlayer','rightPlayer'].forEach((id) => {
           const select = $(id);
@@ -1171,7 +1163,7 @@
         });
       }
       function bind() {
-        ['sponsor','seriesSubtitle','edition','stagePrefix','bgMode','bgX','bgY','bgScale','bgShade','leftName','leftRoman','rightName','rightRoman']
+        ['sponsor','edition','stagePrefix','bgMode','bgX','bgY','bgScale','bgShade','leftName','leftRoman','rightName','rightRoman']
           .forEach(id => $(id).addEventListener('input', render));
         $('supplement').addEventListener('input', () => {
           if ($('supplement').value.trim() !== lastAutoSupplement) lastAutoSupplement = '';
@@ -1195,47 +1187,17 @@
           code.addEventListener('blur', () => { code.value = $(id).value.toUpperCase(); });
         }
         $('bgMode').addEventListener('change', render);
-        for (const id of ['series', 'stage']) {
-          const menu = $(`${id}Menu`);
-          const values = [...$(`${id}List`).options].map(option => option.value);
-          for (const value of values) {
-            const option = document.createElement('button');
-            option.type = 'button';
-            option.textContent = value;
-            option.addEventListener('click', () => {
-              if (id === 'series') {
-                const master = findTournament(value);
-                if (master?.category === 'open' && /オープン$/.test(master.name)) {
-                  $('series').value = master.name.replace(/オープン$/, '');
-                  $('seriesSubtitle').value = 'オープン';
-                } else {
-                  $('series').value = value;
-                  $('seriesSubtitle').value = '';
-                }
-                applyTournamentMaster(master, { force: true });
-              } else {
-                $(id).value = value;
-                syncSupplementFromSelections();
-                render();
-              }
-              menu.classList.add('hidden');
-            });
-            menu.appendChild(option);
-          }
-        }
-        document.querySelectorAll('[data-picker]').forEach((button) => {
-          button.addEventListener('click', () => {
-            const menu = $(`${button.dataset.picker}Menu`);
-            document.querySelectorAll('.jbsui-combo-menu').forEach(other => {
-              if (other !== menu) other.classList.add('hidden');
-            });
-            menu.classList.toggle('hidden');
-          });
+        $('seriesPreset').addEventListener('change', () => {
+          if (!$('seriesPreset').value) return;
+          const master = findTournament($('seriesPreset').value);
+          $('series').value = $('seriesPreset').value;
+          applyTournamentMaster(master, { force: true });
         });
-        document.addEventListener('click', (event) => {
-          if (!event.target.closest('.jbsui-combo-input')) {
-            document.querySelectorAll('.jbsui-combo-menu').forEach(menu => menu.classList.add('hidden'));
-          }
+        $('stagePreset').addEventListener('change', () => {
+          if (!$('stagePreset').value) return;
+          $('stage').value = $('stagePreset').value;
+          syncSupplementFromSelections();
+          render();
         });
 
         for (const side of ['left', 'right']) {
@@ -1334,10 +1296,8 @@
         const text = value => typeof value === 'string' ? value : '';
         const title = text(fields.series).trim();
         const master = findTournament(title);
-        const splitOpen = master?.category === 'open' && master.name === title && /オープン$/.test(title);
         $('edition').value = text(fields.edition);
-        $('series').value = splitOpen ? title.replace(/オープン$/, '') : title;
-        $('seriesSubtitle').value = splitOpen ? 'オープン' : '';
+        $('series').value = title;
         $('stage').value = text(fields.stage);
         $('stagePrefix').value = '';
         $('sponsor').value = '';
