@@ -8,17 +8,15 @@
   <meta http-equiv="Expires" content="0" />
   <meta name="robots" content="noindex, nofollow" />
   <title>YouTubeサムネイル作成</title>
-  <link rel="stylesheet" href="https://jbsbackgammon.github.io/common/ui.css?v=38" />
+  <link rel="stylesheet" href="https://jbsbackgammon.github.io/common/ui.css?v=40" />
 </head>
 <body class="jbsui jbsui-tool-page">
     <aside class="jbsui-panel">
       <div class="jbsui-actions">
         <button class="jbsui-button jbsui-button--primary" id="downloadBtn" type="button">PNG出力</button>
         <span class="jbsui-divider" aria-hidden="true"></span>
-        <div class="jbsui-action-menu">
-          <button class="jbsui-button" id="restoreBtn" type="button" aria-controls="historyMenu" aria-expanded="false" disabled>設定呼出</button>
-          <div class="jbsui-popover-menu hidden" id="historyMenu"></div>
-        </div>
+        <button class="jbsui-button" id="loadSettings" type="button">設定呼出</button>
+        <button class="jbsui-button" id="saveSettings" type="button">設定保存</button>
       </div>
       <section class="jbsui-grid jbsui-grid--3">
         <div class="jbsui-field">
@@ -34,7 +32,7 @@
         </div>
         <div class="jbsui-field">
           <label for="stage">試合名</label>
-          <div class="jbsui-preset-input">
+          <div class="jbsui-preset-input jbsui-preset-input--detail">
             <select id="stagePreset" aria-label="試合名のプリセット">
               <option value="">選択</option>
               <option>決勝</option>
@@ -49,6 +47,7 @@
               <option>本戦１回戦</option>
             </select>
             <input id="stage" value="" />
+            <input id="stagePrefix" type="text" value="" aria-label="試合名補助" />
           </div>
         </div>
       </section>
@@ -84,11 +83,7 @@
         </div>
       </div>
 
-      <section class="jbsui-grid jbsui-grid--3">
-        <div class="jbsui-field">
-          <label for="stagePrefix">試合名（小）</label>
-          <input id="stagePrefix" type="text" value="" />
-        </div>
+      <section class="jbsui-grid jbsui-grid--2">
         <div class="jbsui-field">
           <label for="sponsor">冠名</label>
           <input id="sponsor" type="text" value="" />
@@ -157,7 +152,19 @@
       </div>
     </main>
 
+    <dialog class="jbsui-dialog jbsui-settings-dialog" id="settingsDialog" aria-labelledby="settingsDialogTitle">
+      <div class="jbsui-dialog-head">
+        <h2 id="settingsDialogTitle">保存した設定</h2>
+        <button type="button" id="closeSettings" class="jbsui-dialog-close" aria-label="閉じる">×</button>
+      </div>
+      <div class="jbsui-saved-settings" id="savedSettings"></div>
+    </dialog>
+    <dialog class="jbsui-dialog jbsui-save-complete-dialog" id="saveCompleteDialog" aria-label="保存完了">
+      <p role="status">保存完了</p>
+    </dialog>
+
   <script src="https://jbsbackgammon.github.io/common/brand.js"></script>
+  <script src="https://jbsbackgammon.github.io/common/naming.js?v=1"></script>
   <script>
     (() => {
       'use strict';
@@ -171,7 +178,7 @@
         document.documentElement.removeAttribute('data-jbsui-keyboard-focus');
       });
 
-      const APP_BUILD = '124';
+      const APP_BUILD = '125';
       console.info(`[JBS Thumbnail] build ${APP_BUILD}`);
 
       // common が取得できない場合だけ使う従来マスタ。
@@ -260,34 +267,46 @@
         const edition = (fields.edition || '').trim();
         return `thumbnail_${[edition, series, stage, matchup].filter(Boolean).join('_')}.png`;
       }
-      function closeHistoryMenu() {
-        $('historyMenu').classList.add('hidden');
-        $('restoreBtn').setAttribute('aria-expanded', 'false');
+      function settingsNamingDetails(fields = {}) {
+        return {
+          edition: fields.edition || '',
+          title: fields.series || '',
+          round: [fields.stagePrefix, fields.stage].filter(Boolean).join(''),
+          topName: fields.leftName || '',
+          bottomName: fields.rightName || ''
+        };
       }
-      function refreshHistoryMenu(history) {
-        const button = $('restoreBtn');
-        button.disabled = history.length === 0;
-        const menu = $('historyMenu');
-        menu.replaceChildren();
+      async function renderSavedSettings() {
+        const container = $('savedSettings');
+        const history = await loadHistory();
+        container.replaceChildren();
+        if (!history.length) {
+          const empty = document.createElement('p');
+          empty.className = 'jbsui-saved-settings-empty';
+          empty.textContent = '保存された設定はありません。';
+          container.appendChild(empty);
+          return;
+        }
         history.slice(0, 100).forEach((snapshot, index) => {
           if (!snapshot?.fields) return;
           const item = document.createElement('button');
           item.type = 'button';
-          item.textContent = snapshot.filename || filenameFor(snapshot.fields);
+          item.className = 'jbsui-saved-setting';
+          const details = settingsNamingDetails(snapshot.fields);
+          item.textContent = window.JBSNaming?.formatSavedLabel
+            ? JBSNaming.formatSavedLabel({ savedAt: snapshot.savedAt, ...details })
+            : (snapshot.filename || filenameFor(snapshot.fields));
           item.title = item.textContent;
           item.addEventListener('click', () => {
-            closeHistoryMenu();
             restoreHistory(index).catch(error => console.error('保存した設定を読み込めませんでした。', error));
           });
-          menu.appendChild(item);
+          container.appendChild(item);
         });
-        if (button.disabled) closeHistoryMenu();
       }
-      async function saveCurrentSettings(filename) {
+      async function saveCurrentSettings() {
         const fields = Object.fromEntries(SAVED_FIELDS.map(id => [id, $(id).value]));
-        const history = [{ filename, fields, files: { ...savedFiles }, savedAt: Date.now() }, ...await loadHistory()].slice(0, 100);
+        const history = [{ fields, files: { ...savedFiles }, savedAt: new Date().toISOString() }, ...await loadHistory()].slice(0, 100);
         await savedSnapshot('save', history, 'history');
-        refreshHistoryMenu(history);
       }
       async function restoreHistory(index) {
         const snapshot = (await loadHistory())[index];
@@ -322,6 +341,7 @@
         if (bgSrc) URL.revokeObjectURL(bgSrc);
         $('bgPhotoStatus').textContent = savedFiles.bg?.name || '';
         render();
+        $('settingsDialog')?.close();
       }
 
       function hexToRgb(hex) {
@@ -1224,24 +1244,34 @@
           $('bgPhotoStatus').textContent = e.target.files[0]?.name || '';
           loadFileImage(e.target.files[0], img => { state.bgImage = img; savedFiles.bg = e.target.files[0]; });
         });
-        $('restoreBtn').addEventListener('click', () => {
-          const menu = $('historyMenu');
-          menu.classList.toggle('hidden');
-          $('restoreBtn').setAttribute('aria-expanded', String(!menu.classList.contains('hidden')));
+        let saveCompleteTimer = 0;
+        $('loadSettings').addEventListener('click', async () => {
+          await renderSavedSettings();
+          $('settingsDialog')?.showModal();
         });
-        document.addEventListener('click', event => {
-          if (!event.target.closest('.jbsui-action-menu')) closeHistoryMenu();
+        $('saveSettings').addEventListener('click', async () => {
+          try {
+            await saveCurrentSettings();
+            const dialog = $('saveCompleteDialog');
+            if (dialog) {
+              clearTimeout(saveCompleteTimer);
+              if (!dialog.open) dialog.showModal();
+              saveCompleteTimer = setTimeout(() => dialog.close(), 2000);
+            }
+          } catch (error) {
+            console.error('設定保存に失敗しました。', error);
+            alert('設定を保存できませんでした。ブラウザの保存設定を確認してください。');
+          }
         });
-        document.addEventListener('keydown', event => {
-          if (event.key === 'Escape') closeHistoryMenu();
+        $('closeSettings').addEventListener('click', () => $('settingsDialog')?.close());
+        $('settingsDialog').addEventListener('click', event => {
+          if (event.target === event.currentTarget) event.currentTarget.close();
         });
 
         $('downloadBtn').addEventListener('click', async () => {
           render();
           const fields = Object.fromEntries(SAVED_FIELDS.map(id => [id, $(id).value]));
           const filename = filenameFor(fields);
-          try { await saveCurrentSettings(filename); }
-          catch (error) { console.warn('前回の設定を保存できませんでした。', error); }
           canvas.toBlob((blob) => {
             if (!blob) return;
             const a = document.createElement('a');
@@ -1346,10 +1376,6 @@
           syncSupplementFromSelections({ force: true });
         }
 
-        try {
-          refreshHistoryMenu(await loadHistory());
-        }
-        catch (error) { console.warn('保存済み設定を確認できませんでした。', error); }
 
         await Promise.all([
           applyPlayer('left', $('leftPlayer').value, true),
