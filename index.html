@@ -180,7 +180,7 @@
         document.documentElement.removeAttribute('data-jbsui-keyboard-focus');
       });
 
-      const APP_BUILD = '127';
+      const APP_BUILD = '128';
       console.info(`[JBS Thumbnail] build ${APP_BUILD}`);
 
       // common が取得できない場合だけ使う従来マスタ。
@@ -1211,13 +1211,16 @@
         $('bgMode').addEventListener('change', render);
         $('seriesPreset').addEventListener('change', () => {
           if (!$('seriesPreset').value) return;
-          const master = findTournament($('seriesPreset').value);
-          $('series').value = $('seriesPreset').value;
+          const value = $('seriesPreset').value;
+          const master = findTournament(value);
+          $('series').value = value;
           applyTournamentMaster(master, { force: true });
+          $('seriesPreset').value = '';
         });
         $('stagePreset').addEventListener('change', () => {
           if (!$('stagePreset').value) return;
           $('stage').value = $('stagePreset').value;
+          $('stagePreset').value = '';
           syncSupplementFromSelections();
           render();
         });
