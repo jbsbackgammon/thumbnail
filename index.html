@@ -8,7 +8,7 @@
   <meta http-equiv="Expires" content="0" />
   <meta name="robots" content="noindex, nofollow" />
   <title>YouTubeサムネイル作成</title>
-  <link rel="stylesheet" href="https://jbsbackgammon.github.io/common/ui.css?v=32" />
+  <link rel="stylesheet" href="https://jbsbackgammon.github.io/common/ui.css?v=34" />
   <style>
     * { box-sizing: border-box; }
     html, body { margin: 0; min-height: 100%; }
@@ -104,45 +104,36 @@
         </div>
       </section>
 
-<div class="jbsui-grid jbsui-grid--4">
-          <div class="jbsui-field">
-            <label for="leftPlayer">左選手</label>
-            <select id="leftPlayer"></select>
+<div class="jbsui-player-fields">
+        <div class="jbsui-field jbsui-player-field">
+          <label for="leftName">左選手</label>
+          <div class="jbsui-player-entry-row">
+            <button type="button" class="jbsui-player-photo-picker" id="leftPhotoButton" aria-label="左選手の写真を変更" title="クリックして写真を変更">
+              <img class="jbsui-player-photo-preview" id="leftPhotoPreview" src="https://jbsbackgammon.github.io/overlay/assets/dummy.png" alt="">
+            </button>
+            <div class="jbsui-preset-input">
+              <select id="leftPlayer" aria-label="左選手名の選択"><option value="">選択</option></select>
+              <input id="leftName" />
+            </div>
+            <input class="jbsui-file-input" id="leftPhotoOverride" type="file" accept="image/*" aria-label="左選手の写真ファイル" />
           </div>
-          <div class="jbsui-field">
-            <label for="leftPhotoOverride">写真変更</label>
-            <input class="jbsui-file-input" id="leftPhotoOverride" type="file" accept="image/*" />
-            <div class="jbsui-file-picker"><label class="jbsui-file-button" for="leftPhotoOverride">選択</label><span class="jbsui-file-status" id="leftPhotoStatus"></span></div>
-          </div>
-          <div class="jbsui-field">
-            <label for="leftName">日本語名</label>
-            <input id="leftName" />
-          </div>
-          <div class="jbsui-field">
-            <label for="leftRoman">ローマ字</label>
-            <input id="leftRoman" />
-          </div>
+          <input class="jbsui-player-english-input" id="leftRoman" aria-label="左選手名（英語）" placeholder="English" />
         </div>
-
-        <div class="jbsui-grid jbsui-grid--4">
-          <div class="jbsui-field">
-            <label for="rightPlayer">右選手</label>
-            <select id="rightPlayer"></select>
+        <div class="jbsui-field jbsui-player-field">
+          <label for="rightName">右選手</label>
+          <div class="jbsui-player-entry-row">
+            <button type="button" class="jbsui-player-photo-picker" id="rightPhotoButton" aria-label="右選手の写真を変更" title="クリックして写真を変更">
+              <img class="jbsui-player-photo-preview" id="rightPhotoPreview" src="https://jbsbackgammon.github.io/overlay/assets/dummy.png" alt="">
+            </button>
+            <div class="jbsui-preset-input">
+              <select id="rightPlayer" aria-label="右選手名の選択"><option value="">選択</option></select>
+              <input id="rightName" />
+            </div>
+            <input class="jbsui-file-input" id="rightPhotoOverride" type="file" accept="image/*" aria-label="右選手の写真ファイル" />
           </div>
-          <div class="jbsui-field">
-            <label for="rightPhotoOverride">写真変更</label>
-            <input class="jbsui-file-input" id="rightPhotoOverride" type="file" accept="image/*" />
-            <div class="jbsui-file-picker"><label class="jbsui-file-button" for="rightPhotoOverride">選択</label><span class="jbsui-file-status" id="rightPhotoStatus"></span></div>
-          </div>
-          <div class="jbsui-field">
-            <label for="rightName">日本語名</label>
-            <input id="rightName" />
-          </div>
-          <div class="jbsui-field">
-            <label for="rightRoman">ローマ字</label>
-            <input id="rightRoman" />
-          </div>
+          <input class="jbsui-player-english-input" id="rightRoman" aria-label="右選手名（英語）" placeholder="English" />
         </div>
+      </div>
 
       <section class="jbsui-grid jbsui-grid--2">
         <div class="jbsui-field">
@@ -230,7 +221,7 @@
         document.documentElement.removeAttribute('data-jbsui-keyboard-focus');
       });
 
-      const APP_BUILD = '118';
+      const APP_BUILD = '119';
       console.info(`[JBS Thumbnail] build ${APP_BUILD}`);
 
       // common が取得できない場合だけ使う従来マスタ。
@@ -269,6 +260,7 @@
       const MEMBER_BASE_URL = 'https://jbsbackgammon.github.io/member/';
       const MEMBER_DATA_URL = `${MEMBER_BASE_URL}data/members.json`;
       let memberCacheKey = Date.now();
+      const PLAYER_DUMMY_URL = 'https://jbsbackgammon.github.io/overlay/assets/dummy.png';
       const $ = (id) => document.getElementById(id);
       const canvas = $('canvas');
       const ctx = canvas.getContext('2d');
@@ -355,14 +347,20 @@
         }
         lastTournamentKey = tournamentKey(findTournamentForCurrentFields()) || $('series').value.trim();
         for (const side of ['left', 'right']) {
-          const player = players.find(p => p.id === $(`${side}Player`).value);
+          const player = players.find(p => p.id === $(`${side}Player`).value)
+            || players.find(p => p.name === $(`${side}Name`).value.trim());
           savedFiles[side] = snapshot.files?.[side] || null;
           state[`${side}Override`] = !!savedFiles[side];
           const src = savedFiles[side] ? URL.createObjectURL(savedFiles[side]) : player?.photo;
           try { state[`${side}Image`] = src ? await loadImage(src) : null; }
           catch { state[`${side}Image`] = null; }
-          if (savedFiles[side]) URL.revokeObjectURL(src);
-          $(`${side}PhotoStatus`).textContent = savedFiles[side]?.name || '';
+          if (savedFiles[side]) {
+            syncPlayerPhotoPreviewFromFile(side, savedFiles[side]);
+            URL.revokeObjectURL(src);
+          } else {
+            syncPlayerPhotoPreview(side, player?.photo);
+          }
+          $(`${side}Player`).value = '';
         }
         savedFiles.bg = snapshot.files?.bg || null;
         const bgSrc = savedFiles.bg && URL.createObjectURL(savedFiles.bg);
@@ -959,6 +957,23 @@
         }
       }
 
+      function syncPlayerPhotoPreview(side, src) {
+        const preview = $(`${side}PhotoPreview`);
+        if (preview) preview.src = src || PLAYER_DUMMY_URL;
+      }
+      function syncPlayerPhotoPreviewFromFile(side, file) {
+        if (!file) {
+          syncPlayerPhotoPreview(side, '');
+          return;
+        }
+        const preview = $(`${side}PhotoPreview`);
+        if (!preview) return;
+        const url = URL.createObjectURL(file);
+        const release = () => URL.revokeObjectURL(url);
+        preview.addEventListener('load', release, { once: true });
+        preview.addEventListener('error', release, { once: true });
+        preview.src = url;
+      }
       function loadImage(src) {
         return new Promise((resolve, reject) => {
           const img = new Image();
@@ -975,12 +990,14 @@
           state[`${side}Image`] = null;
           state[`${side}Override`] = false;
           savedFiles[side] = null;
+          syncPlayerPhotoPreview(side, '');
           render();
           return;
         }
         $(`${side}Name`).value = p.name || '';
         $(`${side}Roman`).value = p.roman || '';
         if (forcePhoto) {
+          syncPlayerPhotoPreview(side, p.photo);
           try {
             const img = await loadImage(p.photo);
             state[`${side}Image`] = img;
@@ -988,6 +1005,7 @@
             savedFiles[side] = null;
           } catch (e) {
             state[`${side}Image`] = null;
+            syncPlayerPhotoPreview(side, '');
           }
         }
         render();
@@ -1187,15 +1205,14 @@
           $('seriesList').appendChild(opt);
         });
         ['leftPlayer','rightPlayer'].forEach((id) => {
-          const emptyOption = document.createElement('option');
-          emptyOption.value = '';
-          emptyOption.textContent = '選手選択';
-          $(id).appendChild(emptyOption);
+          const select = $(id);
+          select.replaceChildren(new Option('選択', ''));
           players.forEach((p) => {
             const opt = document.createElement('option');
             opt.value = p.id;
-            opt.textContent = `${p.name} / ${p.roman}`;
-            $(id).appendChild(opt);
+            opt.textContent = p.name;
+            opt.dataset.nameEn = p.roman || '';
+            select.appendChild(opt);
           });
         });
       }
@@ -1255,28 +1272,38 @@
         document.querySelectorAll('[data-picker]').forEach((button) => {
           button.addEventListener('click', () => {
             const menu = $(`${button.dataset.picker}Menu`);
-            document.querySelectorAll('.combo-menu').forEach(other => {
+            document.querySelectorAll('.jbsui-combo-menu').forEach(other => {
               if (other !== menu) other.classList.add('hidden');
             });
             menu.classList.toggle('hidden');
           });
         });
         document.addEventListener('click', (event) => {
-          if (!event.target.closest('.combo-input')) {
-            document.querySelectorAll('.combo-menu').forEach(menu => menu.classList.add('hidden'));
+          if (!event.target.closest('.jbsui-combo-input')) {
+            document.querySelectorAll('.jbsui-combo-menu').forEach(menu => menu.classList.add('hidden'));
           }
         });
 
-        $('leftPlayer').addEventListener('change', () => applyPlayer('left', $('leftPlayer').value, true));
-        $('rightPlayer').addEventListener('change', () => applyPlayer('right', $('rightPlayer').value, true));
-        $('leftPhotoOverride').addEventListener('change', (e) => {
-          $('leftPhotoStatus').textContent = e.target.files[0]?.name || '';
-          loadFileImage(e.target.files[0], img => { state.leftImage = img; state.leftOverride = true; savedFiles.left = e.target.files[0]; });
-        });
-        $('rightPhotoOverride').addEventListener('change', (e) => {
-          $('rightPhotoStatus').textContent = e.target.files[0]?.name || '';
-          loadFileImage(e.target.files[0], img => { state.rightImage = img; state.rightOverride = true; savedFiles.right = e.target.files[0]; });
-        });
+        for (const side of ['left', 'right']) {
+          const select = $(`${side}Player`);
+          select.addEventListener('change', async () => {
+            if (!select.value) return;
+            const id = select.value;
+            await applyPlayer(side, id, true);
+            select.value = '';
+          });
+          $(`${side}PhotoButton`).addEventListener('click', () => $(`${side}PhotoOverride`).click());
+          $(`${side}PhotoOverride`).addEventListener('change', (event) => {
+            const file = event.target.files[0];
+            if (!file) return;
+            syncPlayerPhotoPreviewFromFile(side, file);
+            loadFileImage(file, img => {
+              state[`${side}Image`] = img;
+              state[`${side}Override`] = true;
+              savedFiles[side] = file;
+            });
+          });
+        }
         $('bgPhoto').addEventListener('change', (e) => {
           $('bgPhotoStatus').textContent = e.target.files[0]?.name || '';
           loadFileImage(e.target.files[0], img => { state.bgImage = img; savedFiles.bg = e.target.files[0]; });
@@ -1287,7 +1314,7 @@
           $('restoreBtn').setAttribute('aria-expanded', String(!menu.classList.contains('hidden')));
         });
         document.addEventListener('click', event => {
-          if (!event.target.closest('.preview-actions')) closeHistoryMenu();
+          if (!event.target.closest('.jbsui-action-menu')) closeHistoryMenu();
         });
         document.addEventListener('keydown', event => {
           if (event.key === 'Escape') closeHistoryMenu();
@@ -1324,7 +1351,6 @@
         $(side + 'Roman').value = roman || player?.roman || '';
         savedFiles[side] = null;
         state[side + 'Override'] = false;
-        $(side + 'PhotoStatus').textContent = '';
         const photo = typeof rawPhoto === 'string'
           && /^(data:image\/|https:\/\/jbsbackgammon\.github\.io\/member\/)/i.test(rawPhoto)
           ? rawPhoto : (player?.photo || '');
@@ -1335,16 +1361,18 @@
             const extension = blob.type === 'image/png' ? 'png' : blob.type === 'image/jpeg' ? 'jpg' : 'webp';
             savedFiles[side] = new File([blob], 'overlay_' + side + '.' + extension, { type: blob.type || 'image/webp' });
             state[side + 'Override'] = true;
-            $(side + 'PhotoStatus').textContent = '配信盤面から取込';
           } catch (error) {
             console.warn('選手写真の保存用変換に失敗しました。', error);
           }
         }
+        syncPlayerPhotoPreview(side, photo);
         try { state[side + 'Image'] = photo ? await loadImage(photo) : null; }
         catch (error) {
           state[side + 'Image'] = null;
+          syncPlayerPhotoPreview(side, '');
           console.warn('配信盤面の選手写真を読み込めませんでした。', error);
         }
+        playerSelect.value = '';
       }
 
       async function applyOverlayTransfer(fields) {
