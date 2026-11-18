@@ -11,7 +11,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="https://jbsbackgammon.github.io/common/ui.css?v=46" />
+  <link rel="stylesheet" href="https://jbsbackgammon.github.io/common/ui.css?v=48" />
 </head>
 <body class="jbsui jbsui-tool-page jbsui-tool-page--fit-first-view">
     <aside class="jbsui-panel">
@@ -32,29 +32,19 @@
         </div>
         <div class="jbsui-field">
           <label for="series">大会名</label>
-          <div class="jbsui-preset-input">
-            <select id="seriesPreset" aria-label="大会名のプリセット"><option value="">選択</option></select>
+          <div class="jbsui-preset-picker">
+            <button class="jbsui-preset-button" id="seriesPresetButton" type="button" aria-controls="seriesPresetMenu" aria-expanded="false">選択</button>
             <input id="series" value="" />
+            <div class="jbsui-combo-menu hidden" id="seriesPresetMenu"></div>
           </div>
         </div>
         <div class="jbsui-field">
           <label for="stage">試合名</label>
-          <div class="jbsui-preset-input jbsui-preset-input--detail">
-            <select id="stagePreset" aria-label="試合名のプリセット">
-              <option value="">選択</option>
-              <option>決勝</option>
-              <option>準決勝</option>
-              <option>準々決勝</option>
-              <option>３回戦</option>
-              <option>２回戦</option>
-              <option>１回戦</option>
-              <option>プレーオフ</option>
-              <option>本戦３回戦</option>
-              <option>本戦２回戦</option>
-              <option>本戦１回戦</option>
-            </select>
+          <div class="jbsui-preset-picker jbsui-preset-picker--detail">
+            <button class="jbsui-preset-button" id="stagePresetButton" type="button" aria-controls="stagePresetMenu" aria-expanded="false">選択</button>
             <input id="stage" value="" />
             <input id="stagePrefix" type="text" value="" aria-label="試合名補助" />
+            <div class="jbsui-combo-menu hidden" id="stagePresetMenu"></div>
           </div>
         </div>
         <div class="jbsui-field">
@@ -70,10 +60,12 @@
             <button type="button" class="jbsui-player-photo-picker" id="leftPhotoButton" aria-label="左選手の写真を変更" title="クリックして写真を変更">
               <img class="jbsui-player-photo-preview" id="leftPhotoPreview" src="https://jbsbackgammon.github.io/overlay/assets/dummy.png" alt="">
             </button>
-            <div class="jbsui-preset-input">
-              <select id="leftPlayer" aria-label="左選手名の選択"><option value="">選択</option></select>
+            <div class="jbsui-preset-picker">
+              <button class="jbsui-preset-button" id="leftPlayerButton" type="button" aria-controls="leftPlayerMenu" aria-expanded="false">選択</button>
               <input id="leftName" />
+              <div class="jbsui-combo-menu hidden" id="leftPlayerMenu"></div>
             </div>
+            <input id="leftPlayer" type="hidden" value="" />
             <input class="jbsui-file-input" id="leftPhotoOverride" type="file" accept="image/*" aria-label="左選手の写真ファイル" />
           </div>
           <input class="jbsui-player-english-input" id="leftRoman" aria-label="左選手名（英語）" placeholder="English" />
@@ -84,10 +76,12 @@
             <button type="button" class="jbsui-player-photo-picker" id="rightPhotoButton" aria-label="右選手の写真を変更" title="クリックして写真を変更">
               <img class="jbsui-player-photo-preview" id="rightPhotoPreview" src="https://jbsbackgammon.github.io/overlay/assets/dummy.png" alt="">
             </button>
-            <div class="jbsui-preset-input">
-              <select id="rightPlayer" aria-label="右選手名の選択"><option value="">選択</option></select>
+            <div class="jbsui-preset-picker">
+              <button class="jbsui-preset-button" id="rightPlayerButton" type="button" aria-controls="rightPlayerMenu" aria-expanded="false">選択</button>
               <input id="rightName" />
+              <div class="jbsui-combo-menu hidden" id="rightPlayerMenu"></div>
             </div>
+            <input id="rightPlayer" type="hidden" value="" />
             <input class="jbsui-file-input" id="rightPhotoOverride" type="file" accept="image/*" aria-label="右選手の写真ファイル" />
           </div>
           <input class="jbsui-player-english-input" id="rightRoman" aria-label="右選手名（英語）" placeholder="English" />
@@ -177,7 +171,7 @@
         document.documentElement.removeAttribute('data-jbsui-keyboard-focus');
       });
 
-      const APP_BUILD = '134';
+      const APP_BUILD = '135';
       console.info(`[JBS Thumbnail] build ${APP_BUILD}`);
 
       // common が取得できない場合だけ使う従来マスタ。
@@ -1163,23 +1157,65 @@
           console.error('[JBS Thumbnail] member の選手一覧を取得できませんでした。', error);
         }
       }
-      function populate() {
-        const seriesPreset = $('seriesPreset');
-        seriesPreset.replaceChildren(new Option('選択', ''));
-        tournaments.forEach((master) => {
-          seriesPreset.add(new Option(master.name, master.name));
+      function closePresetMenus(exceptMenu = null) {
+        for (const menuId of ['seriesPresetMenu','stagePresetMenu','leftPlayerMenu','rightPlayerMenu']) {
+          const menu = $(menuId);
+          if (!menu || menu === exceptMenu) continue;
+          menu.classList.add('hidden');
+          const buttonId = menuId.replace('Menu', 'Button');
+          $(buttonId)?.setAttribute('aria-expanded', 'false');
+        }
+      }
+      function togglePresetMenu(buttonId, menuId) {
+        const button = $(buttonId);
+        const menu = $(menuId);
+        if (!button || !menu) return;
+        const willOpen = menu.classList.contains('hidden');
+        closePresetMenus(willOpen ? menu : null);
+        menu.classList.toggle('hidden', !willOpen);
+        button.setAttribute('aria-expanded', String(willOpen));
+      }
+      function addPresetItem(menu, label, onChoose) {
+        const item = document.createElement('button');
+        item.type = 'button';
+        item.textContent = label;
+        item.addEventListener('click', async () => {
+          await onChoose();
+          closePresetMenus();
         });
-        ['leftPlayer','rightPlayer'].forEach((id) => {
-          const select = $(id);
-          select.replaceChildren(new Option('選択', ''));
-          players.forEach((p) => {
-            const opt = document.createElement('option');
-            opt.value = p.id;
-            opt.textContent = p.name;
-            opt.dataset.nameEn = p.roman || '';
-            select.appendChild(opt);
+        menu.appendChild(item);
+      }
+      function populate() {
+        const seriesMenu = $('seriesPresetMenu');
+        seriesMenu.replaceChildren();
+        tournaments.forEach((master) => {
+          addPresetItem(seriesMenu, master.name, () => {
+            $('series').value = master.name;
+            applyTournamentMaster(master, { force: true });
           });
         });
+
+        const stageMenu = $('stagePresetMenu');
+        stageMenu.replaceChildren();
+        ['決勝','準決勝','準々決勝','３回戦','２回戦','１回戦','プレーオフ','本戦３回戦','本戦２回戦','本戦１回戦']
+          .forEach((value) => {
+            addPresetItem(stageMenu, value, () => {
+              $('stage').value = value;
+              syncSupplementFromSelections();
+              render();
+            });
+          });
+
+        for (const side of ['left','right']) {
+          const menu = $(side + 'PlayerMenu');
+          menu.replaceChildren();
+          players.forEach((player) => {
+            addPresetItem(menu, player.name, async () => {
+              $(side + 'Player').value = '';
+              await applyPlayer(side, player.id, true);
+            });
+          });
+        }
       }
       function bind() {
         ['sponsor','edition','stagePrefix','bgMode','bgX','bgY','bgScale','bgShade','leftName','leftRoman','rightName','rightRoman']
@@ -1206,30 +1242,25 @@
           code.addEventListener('blur', () => { code.value = $(id).value.toUpperCase(); });
         }
         $('bgMode').addEventListener('change', render);
-        $('seriesPreset').addEventListener('change', () => {
-          if (!$('seriesPreset').value) return;
-          const value = $('seriesPreset').value;
-          const master = findTournament(value);
-          $('series').value = value;
-          applyTournamentMaster(master, { force: true });
-          $('seriesPreset').value = '';
+        for (const [buttonId, menuId] of [
+          ['seriesPresetButton','seriesPresetMenu'],
+          ['stagePresetButton','stagePresetMenu'],
+          ['leftPlayerButton','leftPlayerMenu'],
+          ['rightPlayerButton','rightPlayerMenu']
+        ]) {
+          $(buttonId).addEventListener('click', (event) => {
+            event.stopPropagation();
+            togglePresetMenu(buttonId, menuId);
+          });
+        }
+        document.addEventListener('click', (event) => {
+          if (!event.target.closest('.jbsui-preset-picker')) closePresetMenus();
         });
-        $('stagePreset').addEventListener('change', () => {
-          if (!$('stagePreset').value) return;
-          $('stage').value = $('stagePreset').value;
-          $('stagePreset').value = '';
-          syncSupplementFromSelections();
-          render();
+        document.addEventListener('keydown', (event) => {
+          if (event.key === 'Escape') closePresetMenus();
         });
 
         for (const side of ['left', 'right']) {
-          const select = $(`${side}Player`);
-          select.addEventListener('change', async () => {
-            if (!select.value) return;
-            const id = select.value;
-            await applyPlayer(side, id, true);
-            select.value = '';
-          });
           $(`${side}PhotoButton`).addEventListener('click', () => $(`${side}PhotoOverride`).click());
           $(`${side}PhotoOverride`).addEventListener('change', (event) => {
             const file = event.target.files[0];
@@ -1293,8 +1324,7 @@
         const normalized = value => String(value || '').replace(/[\s\u3000]+/g, '');
         const player = players.find(item => normalized(item.name) === normalized(name));
         const playerSelect = $(side + 'Player');
-        const selected = player?.id || '';
-        playerSelect.value = [...playerSelect.options].some(option => option.value === selected) ? selected : '';
+        playerSelect.value = '';
         $(side + 'Name').value = name || '';
         $(side + 'Roman').value = roman || player?.roman || '';
         savedFiles[side] = null;
