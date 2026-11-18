@@ -471,10 +471,10 @@
         <button class="preview-download jbsui-button jbsui-button--primary" id="downloadBtn" type="button">PNG出力</button>
         <button class="preview-restore jbsui-button" id="restoreBtn" type="button" aria-controls="historyMenu" aria-expanded="false" disabled>呼出</button>
         <div class="history-menu hidden" id="historyMenu"></div>
+      </div>
     </aside>
 
     <main class="preview-wrap">
-      </div>
       <div class="canvas-shell">
         <canvas id="canvas" width="1920" height="1080" aria-label="サムネイルプレビュー"></canvas>
       </div>
@@ -495,7 +495,7 @@
         document.documentElement.removeAttribute('data-jbsui-keyboard-focus');
       });
 
-      const APP_BUILD = '114';
+      const APP_BUILD = '115';
       console.info(`[JBS Thumbnail] build ${APP_BUILD}`);
 
       // common が取得できない場合だけ使う従来マスタ。
