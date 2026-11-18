@@ -21,7 +21,7 @@
         <button class="jbsui-button" id="loadSettings" type="button">設定呼出</button>
         <button class="jbsui-button" id="saveSettings" type="button">設定保存</button>
       </div>
-      <section class="jbsui-grid jbsui-grid--3">
+      <section class="jbsui-grid jbsui-grid--5">
         <div class="jbsui-field">
           <label for="sponsor">冠名</label>
           <input id="sponsor" type="text" value="" />
@@ -37,9 +37,6 @@
             <input id="series" value="" />
           </div>
         </div>
-      </section>
-
-      <section class="jbsui-grid jbsui-grid--2">
         <div class="jbsui-field">
           <label for="stage">試合名</label>
           <div class="jbsui-preset-input jbsui-preset-input--detail">
@@ -180,7 +177,7 @@
         document.documentElement.removeAttribute('data-jbsui-keyboard-focus');
       });
 
-      const APP_BUILD = '131';
+      const APP_BUILD = '132';
       console.info(`[JBS Thumbnail] build ${APP_BUILD}`);
 
       // common が取得できない場合だけ使う従来マスタ。
