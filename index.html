@@ -11,7 +11,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="https://jbsbackgammon.github.io/common/ui.css?v=51" />
+  <link rel="stylesheet" href="https://jbsbackgammon.github.io/common/ui.css?v=53" />
 </head>
 <body class="jbsui jbsui-tool-page jbsui-tool-page--fit-first-view">
     <aside class="jbsui-panel">
@@ -152,12 +152,9 @@
       </div>
       <div class="jbsui-saved-settings" id="savedSettings"></div>
     </dialog>
-    <dialog class="jbsui-dialog jbsui-save-complete-dialog" id="saveCompleteDialog" aria-label="保存完了">
-      <p role="status">保存完了</p>
-    </dialog>
-
   <script src="https://jbsbackgammon.github.io/common/brand.js"></script>
   <script src="https://jbsbackgammon.github.io/common/naming.js?v=1"></script>
+  <script src="https://jbsbackgammon.github.io/common/ui.js?v=1"></script>
   <script>
     (() => {
       'use strict';
@@ -171,7 +168,7 @@
         document.documentElement.removeAttribute('data-jbsui-keyboard-focus');
       });
 
-      const APP_BUILD = '137';
+      const APP_BUILD = '138';
       console.info(`[JBS Thumbnail] build ${APP_BUILD}`);
 
       // common が取得できない場合だけ使う従来マスタ。
@@ -1277,20 +1274,14 @@
           $('bgPhotoStatus').textContent = e.target.files[0]?.name || '';
           loadFileImage(e.target.files[0], img => { state.bgImage = img; savedFiles.bg = e.target.files[0]; });
         });
-        let saveCompleteTimer = 0;
         $('loadSettings').addEventListener('click', async () => {
           await renderSavedSettings();
           $('settingsDialog')?.showModal();
         });
-        $('saveSettings').addEventListener('click', async () => {
+        $('saveSettings').addEventListener('click', async (event) => {
           try {
             await saveCurrentSettings();
-            const dialog = $('saveCompleteDialog');
-            if (dialog) {
-              clearTimeout(saveCompleteTimer);
-              if (!dialog.open) dialog.showModal();
-              saveCompleteTimer = setTimeout(() => dialog.close(), 2000);
-            }
+            JBSUI.showButtonFeedback(event.currentTarget);
           } catch (error) {
             console.error('設定保存に失敗しました。', error);
             alert('設定を保存できませんでした。ブラウザの保存設定を確認してください。');
