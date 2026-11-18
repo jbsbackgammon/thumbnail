@@ -8,7 +8,7 @@
   <meta http-equiv="Expires" content="0" />
   <meta name="robots" content="noindex, nofollow" />
   <title>YouTubeサムネイル作成</title>
-  <link rel="stylesheet" href="https://jbsbackgammon.github.io/common/ui.css?v=37" />
+  <link rel="stylesheet" href="https://jbsbackgammon.github.io/common/ui.css?v=38" />
 </head>
 <body class="jbsui jbsui-tool-page">
     <aside class="jbsui-panel">
@@ -106,7 +106,7 @@
       </section>
 
 
-      <section class="jbsui-grid jbsui-grid--4">
+      <section class="jbsui-grid jbsui-grid--3">
         <div class="jbsui-field">
           <label for="bgMode">背景写真</label>
           <select id="bgMode">
@@ -114,6 +114,20 @@
             <option value="photoPlayers">あり（顔写真表示）</option>
             <option value="photo">あり（顔写真非表示）</option>
           </select>
+        </div>
+        <div class="jbsui-field">
+          <label for="mainColor">メインカラー</label>
+          <div class="jbsui-color-control">
+            <input id="mainColor" type="color" value="#000000" />
+            <input class="jbsui-hex-input" id="mainColorCode" type="text" value="#000000" aria-label="メインカラーのカラーコード" spellcheck="false" maxlength="7" />
+          </div>
+        </div>
+        <div class="jbsui-field">
+          <label for="subColor">サブカラー</label>
+          <div class="jbsui-color-control">
+            <input id="subColor" type="color" value="#525252" />
+            <input class="jbsui-hex-input" id="subColorCode" type="text" value="#525252" aria-label="サブカラーのカラーコード" spellcheck="false" maxlength="7" />
+          </div>
         </div>
       </section>
       <div id="photoControls" class="jbsui-grid jbsui-grid--4 hidden">
@@ -141,22 +155,6 @@
             <input id="bgShade" type="range" min="0" max="70" value="0" />
           </div>
       </div>
-      <section class="jbsui-grid jbsui-grid--2">
-        <div class="jbsui-field">
-          <label for="mainColor">メインカラー</label>
-          <div class="jbsui-color-control">
-            <input id="mainColor" type="color" value="#000000" />
-            <input class="jbsui-hex-input" id="mainColorCode" type="text" value="#000000" aria-label="メインカラーのカラーコード" spellcheck="false" maxlength="7" />
-          </div>
-        </div>
-        <div class="jbsui-field">
-          <label for="subColor">サブカラー</label>
-          <div class="jbsui-color-control">
-            <input id="subColor" type="color" value="#525252" />
-            <input class="jbsui-hex-input" id="subColorCode" type="text" value="#525252" aria-label="サブカラーのカラーコード" spellcheck="false" maxlength="7" />
-          </div>
-        </div>
-      </section>
     </aside>
 
     <main class="jbsui-preview">
@@ -179,7 +177,7 @@
         document.documentElement.removeAttribute('data-jbsui-keyboard-focus');
       });
 
-      const APP_BUILD = '121';
+      const APP_BUILD = '122';
       console.info(`[JBS Thumbnail] build ${APP_BUILD}`);
 
       // common が取得できない場合だけ使う従来マスタ。
