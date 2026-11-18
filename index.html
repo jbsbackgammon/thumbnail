@@ -23,6 +23,10 @@
       </div>
       <section class="jbsui-grid jbsui-grid--3">
         <div class="jbsui-field">
+          <label for="sponsor">冠名</label>
+          <input id="sponsor" type="text" value="" />
+        </div>
+        <div class="jbsui-field">
           <label for="edition">回次等</label>
           <input id="edition" type="text" value="" />
         </div>
@@ -33,6 +37,9 @@
             <input id="series" value="" />
           </div>
         </div>
+      </section>
+
+      <section class="jbsui-grid jbsui-grid--2">
         <div class="jbsui-field">
           <label for="stage">試合名</label>
           <div class="jbsui-preset-input jbsui-preset-input--detail">
@@ -53,9 +60,13 @@
             <input id="stagePrefix" type="text" value="" aria-label="試合名補助" />
           </div>
         </div>
+        <div class="jbsui-field">
+          <label for="supplement">試合補足</label>
+          <input id="supplement" value="" />
+        </div>
       </section>
 
-<div class="jbsui-player-fields">
+      <div class="jbsui-player-fields">
         <div class="jbsui-field jbsui-player-field">
           <label for="leftName">左選手</label>
           <div class="jbsui-player-entry-row">
@@ -86,18 +97,6 @@
         </div>
       </div>
 
-      <section class="jbsui-grid jbsui-grid--2">
-        <div class="jbsui-field">
-          <label for="sponsor">冠名</label>
-          <input id="sponsor" type="text" value="" />
-        </div>
-        <div class="jbsui-field">
-          <label for="supplement">試合補足</label>
-          <input id="supplement" value="" />
-        </div>
-      </section>
-
-
       <section class="jbsui-grid jbsui-grid--3">
         <div class="jbsui-field">
           <label for="bgMode">背景写真</label>
@@ -108,10 +107,10 @@
           </select>
         </div>
         <div class="jbsui-field">
-          <label for="mainColor">メインカラー</label>
+          <label for="mainColor">テーマカラー</label>
           <div class="jbsui-color-control">
             <input id="mainColor" type="color" value="#000000" />
-            <input class="jbsui-hex-input" id="mainColorCode" type="text" value="#000000" aria-label="メインカラーのカラーコード" spellcheck="false" maxlength="7" />
+            <input class="jbsui-hex-input" id="mainColorCode" type="text" value="#000000" aria-label="テーマカラーのカラーコード" spellcheck="false" maxlength="7" />
           </div>
         </div>
         <div class="jbsui-field">
@@ -181,7 +180,7 @@
         document.documentElement.removeAttribute('data-jbsui-keyboard-focus');
       });
 
-      const APP_BUILD = '126';
+      const APP_BUILD = '127';
       console.info(`[JBS Thumbnail] build ${APP_BUILD}`);
 
       // common が取得できない場合だけ使う従来マスタ。
