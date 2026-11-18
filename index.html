@@ -171,7 +171,7 @@
         document.documentElement.removeAttribute('data-jbsui-keyboard-focus');
       });
 
-      const APP_BUILD = '123';
+      const APP_BUILD = '124';
       console.info(`[JBS Thumbnail] build ${APP_BUILD}`);
 
       // common が取得できない場合だけ使う従来マスタ。
@@ -1334,11 +1334,23 @@
         await Promise.all([loadCommonBrand(), loadMemberPlayers()]);
         populate();
         bind();
+
+        // Match overlay defaults. The edition is always sourced from common.
+        $('series').value = '日本選手権';
+        $('stage').value = '決勝';
+        const initialTournament = findTournament('日本選手権');
+        if (initialTournament) {
+          applyTournamentMaster(initialTournament, { force: true });
+        } else {
+          $('edition').value = '';
+          syncSupplementFromSelections({ force: true });
+        }
+
         try {
           refreshHistoryMenu(await loadHistory());
         }
         catch (error) { console.warn('保存済み設定を確認できませんでした。', error); }
-        applySeriesMaster();
+
         await Promise.all([
           applyPlayer('left', $('leftPlayer').value, true),
           applyPlayer('right', $('rightPlayer').value, true)
