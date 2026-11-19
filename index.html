@@ -183,7 +183,7 @@
         document.documentElement.removeAttribute('data-jbsui-keyboard-focus');
       });
 
-      const APP_BUILD = '149';
+      const APP_BUILD = '150';
       const pageQuery = new URLSearchParams(location.search);
       const work = ['1', '2', '3'].includes(pageQuery.get('work')) ? pageQuery.get('work') : '1';
       const WORKSPACE_DB_KEY = `workspace-${work}`;
@@ -300,19 +300,22 @@
       async function loadWorkspace() {
         try {
           const snapshot = await savedSnapshot('load', undefined, WORKSPACE_DB_KEY);
-          if (snapshot?.fields) return snapshot;
+          const normalized = normalizeSnapshotWithCurrentMaster(snapshot);
+          if (normalized?.fields) return normalized;
         } catch (error) {
           console.warn('IndexedDBから作業内容を読み込めませんでした。', error);
         }
         try {
           const snapshot = JSON.parse(localStorage.getItem(WORKSPACE_FALLBACK_KEY) || 'null');
-          return snapshot?.fields ? snapshot : null;
+          return normalizeSnapshotWithCurrentMaster(snapshot);
         } catch {
           return null;
         }
       }
       let workspaceSaveTimer = 0;
+      let workspaceAutoSaveEnabled = false;
       function scheduleWorkspaceSave() {
+        if (!workspaceAutoSaveEnabled) return;
         clearTimeout(workspaceSaveTimer);
         workspaceSaveTimer = setTimeout(() => {
           saveWorkspace().catch(error => console.warn('作業内容を自動保存できませんでした。', error));
@@ -402,7 +405,31 @@
         localStorage.setItem(SETTINGS_HISTORY_KEY, JSON.stringify(fallbackHistory));
         return indexedDbSaved || fallbackHistory.length > 0;
       }
+      function normalizeSnapshotWithCurrentMaster(snapshot) {
+        if (!snapshot?.fields) return snapshot;
+        const fields = { ...snapshot.fields };
+        const series = String(fields.series || '').trim();
+        const stage = String(fields.stage || '').trim();
+
+        // Ignore an incomplete workspace that has neither an event nor a round.
+        // This can be left behind by older builds during asynchronous startup.
+        if (!series && !stage) return null;
+
+        const master = findTournament(series) || findTournament(`${series}オープン`);
+        if (master) {
+          // Master-derived values are repaired only when missing, preserving
+          // deliberate manual edits in a saved workspace.
+          if (!String(fields.edition || '').trim() && master.edition) fields.edition = master.edition;
+          if (!String(fields.mainColor || '').trim() && master.color) fields.mainColor = master.color;
+          if (!String(fields.subColor || '').trim()) {
+            fields.subColor = master.subColor || makeSubColor(master.color || '#000000');
+          }
+          if (!stage && master.name === '日本選手権') fields.stage = '決勝';
+        }
+        return { ...snapshot, fields };
+      }
       async function applySnapshot(snapshot, { closeDialog = true } = {}) {
+        snapshot = normalizeSnapshotWithCurrentMaster(snapshot);
         if (!snapshot?.fields) return;
         for (const id of SAVED_FIELDS) {
           if (typeof snapshot.fields[id] === 'string') $(id).value = snapshot.fields[id];
@@ -410,7 +437,15 @@
         if (snapshot.fields.seriesSubtitle && !$('series').value.endsWith(snapshot.fields.seriesSubtitle)) {
           $('series').value += snapshot.fields.seriesSubtitle;
         }
-        lastTournamentKey = tournamentKey(findTournamentForCurrentFields()) || $('series').value.trim();
+        const restoredMaster = findTournamentForCurrentFields();
+        if (restoredMaster) {
+          if (!$('edition').value.trim() && restoredMaster.edition) $('edition').value = restoredMaster.edition;
+          if (!$('mainColor').value && restoredMaster.color) $('mainColor').value = restoredMaster.color;
+          if (!$('subColor').value) $('subColor').value = restoredMaster.subColor || makeSubColor(restoredMaster.color || $('mainColor').value);
+          if (!$('stage').value.trim() && restoredMaster.name === '日本選手権') $('stage').value = '決勝';
+          if (!$('supplement').value.trim()) syncSupplementFromSelections({ force: true });
+        }
+        lastTournamentKey = tournamentKey(restoredMaster) || $('series').value.trim();
         for (const side of ['left', 'right']) {
           const player = players.find(p => p.id === $(`${side}Player`).value)
             || players.find(p => p.name === $(`${side}Name`).value.trim());
@@ -1512,8 +1547,15 @@
         if (workspaceSnapshot?.fields) {
           await applySnapshot(workspaceSnapshot, { closeDialog: false });
         } else {
+          // No valid workspace: keep the official 日本選手権・決勝 defaults.
+          $('series').value = '日本選手権';
+          $('stage').value = '決勝';
+          const defaultTournament = findTournament('日本選手権');
+          if (defaultTournament) applyTournamentMaster(defaultTournament, { force: true });
+          syncSupplementFromSelections({ force: true });
           render();
         }
+        workspaceAutoSaveEnabled = true;
 
         // Repaint once if the browser reports a later font-set transition
         // (for example after a slow cache/network response).
