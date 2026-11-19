@@ -178,7 +178,7 @@
         document.documentElement.removeAttribute('data-jbsui-keyboard-focus');
       });
 
-      const APP_BUILD = '145';
+      const APP_BUILD = '146';
       console.info(`[JBS Thumbnail] build ${APP_BUILD}`);
 
       // common が取得できない場合だけ使う従来マスタ。
@@ -1406,14 +1406,15 @@
       }
 
       async function init() {
-        await Promise.all([loadCommonBrand(), loadMemberPlayers()]);
+        // Start member loading in parallel, but do not block the initial
+        // thumbnail preview on the member list.
+        const memberPromise = loadMemberPlayers();
+
+        // The first visible canvas paint waits only for the tournament master
+        // and the actual Japanese canvas fonts.
+        await Promise.all([loadCommonBrand(), ensureCanvasFonts()]);
         populate();
         bind();
-
-        // Canvas text must not render until the actual Japanese web fonts used
-        // by the thumbnail are available. Otherwise the first paint can mix in
-        // fallback glyphs even though later PNG output is correct.
-        await ensureCanvasFonts();
 
         // Match overlay defaults. The edition is always sourced from common.
         $('series').value = '日本選手権';
@@ -1427,13 +1428,15 @@
           syncSupplementFromSelections({ force: true });
         }
 
-
-        await Promise.all([
-          applyPlayer('left', $('leftPlayer').value, true),
-          applyPlayer('right', $('rightPlayer').value, true)
-        ]);
+        // Explicitly paint the default tournament immediately so the preview
+        // itself, not only the input fields, starts as 日本選手権・決勝.
         render();
         enableOverlayTransfer();
+
+        // Populate player choices afterward without delaying the initial preview.
+        await memberPromise;
+        populate();
+        render();
 
         // Repaint once if the browser reports a later font-set transition
         // (for example after a slow cache/network response).
