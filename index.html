@@ -11,7 +11,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="https://jbsbackgammon.github.io/common/ui.css?v=54" />
+  <link rel="stylesheet" href="https://jbsbackgammon.github.io/common/ui.css?v=55" />
 </head>
 <body class="jbsui jbsui-tool-page jbsui-tool-page--fit-first-view">
     <aside class="jbsui-panel">
@@ -27,7 +27,7 @@
       </div>
       <section class="jbsui-grid jbsui-grid--5">
         <div class="jbsui-field">
-          <label for="sponsor">冠名</label>
+          <label for="sponsor">ヘッダー</label>
           <input id="sponsor" type="text" value="" />
         </div>
         <div class="jbsui-field">
@@ -58,11 +58,11 @@
               <option>本戦１回戦</option>
             </select>
             <input id="stage" value="決勝" />
-            <input id="stagePrefix" type="text" value="" aria-label="試合名補助" />
+            <input id="stagePrefix" type="text" value="" aria-label="試合名補助" placeholder="補足" />
           </div>
         </div>
         <div class="jbsui-field">
-          <label for="supplement">試合補足</label>
+          <label for="supplement">フッター</label>
           <input id="supplement" value="" />
         </div>
       </section>
@@ -178,7 +178,7 @@
         document.documentElement.removeAttribute('data-jbsui-keyboard-focus');
       });
 
-      const APP_BUILD = '146';
+      const APP_BUILD = '147';
       console.info(`[JBS Thumbnail] build ${APP_BUILD}`);
 
       // common が取得できない場合だけ使う従来マスタ。
