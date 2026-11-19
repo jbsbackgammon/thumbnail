@@ -19,7 +19,10 @@
         <button class="jbsui-button jbsui-button--primary jbsui-button--primary-action" id="downloadBtn" type="button">PNG出力</button>
         <span class="jbsui-divider" aria-hidden="true"></span>
         <button class="jbsui-button" id="loadSettings" type="button">設定呼出</button>
+        <button class="jbsui-button" id="importJson" type="button">JSON取込</button>
+        <input id="importJsonFile" type="file" accept="application/json,.json" hidden />
         <button class="jbsui-button" id="saveSettings" type="button">設定保存</button>
+        <button class="jbsui-button" id="exportJson" type="button">JSON出力</button>
       </div>
       <section class="jbsui-grid jbsui-grid--5">
         <div class="jbsui-field">
@@ -168,7 +171,7 @@
         document.documentElement.removeAttribute('data-jbsui-keyboard-focus');
       });
 
-      const APP_BUILD = '139';
+      const APP_BUILD = '140';
       console.info(`[JBS Thumbnail] build ${APP_BUILD}`);
 
       // common が取得できない場合だけ使う従来マスタ。
@@ -1243,6 +1246,64 @@
           });
         }
       }
+      function currentSettingsFields() {
+        return Object.fromEntries(SAVED_FIELDS.map(id => [id, $(id).value]));
+      }
+      function downloadJson() {
+        const fields = currentSettingsFields();
+        const payload = { version: 1, exportedAt: new Date().toISOString(), fields };
+        const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        const details = settingsNamingDetails(fields);
+        link.download = window.JBSNaming?.makeFileName
+          ? JBSNaming.makeFileName({ prefix: 'サムネイル', ...details })
+          : 'thumbnail_settings.json';
+        link.href = url;
+        link.click();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+      }
+      async function importJsonFile(file) {
+        if (!file) return;
+        try {
+          const parsed = JSON.parse(await file.text());
+          const imported = parsed?.fields && typeof parsed.fields === 'object' ? parsed.fields : parsed;
+          if (!imported || typeof imported !== 'object' || Array.isArray(imported)) throw new Error();
+          let importedCount = 0;
+          for (const id of SAVED_FIELDS) {
+            if (Object.hasOwn(imported, id) && typeof imported[id] === 'string') {
+              $(id).value = imported[id];
+              importedCount += 1;
+            }
+          }
+          if (!importedCount) throw new Error();
+          if (imported.seriesSubtitle && !$('series').value.endsWith(imported.seriesSubtitle)) {
+            $('series').value += imported.seriesSubtitle;
+          }
+          lastTournamentKey = tournamentKey(findTournamentForCurrentFields()) || $('series').value.trim();
+          for (const side of ['left', 'right']) {
+            const player = players.find(p => p.name === $(side + 'Name').value.trim());
+            savedFiles[side] = null;
+            state[side + 'Override'] = false;
+            if (player?.photo) {
+              syncPlayerPhotoPreview(side, player.photo);
+              try { state[side + 'Image'] = await loadImage(player.photo); }
+              catch { state[side + 'Image'] = null; }
+            } else {
+              state[side + 'Image'] = null;
+              syncPlayerPhotoPreview(side, '');
+            }
+            $(side + 'Player').value = '';
+          }
+          savedFiles.bg = null;
+          state.bgImage = null;
+          $('bgPhotoStatus').textContent = '';
+          render();
+        } catch (error) {
+          console.error('JSON設定を読み込めませんでした。', error);
+          alert('JSON設定を読み込めませんでした。サムネイルから出力したJSONファイルを選択してください。');
+        }
+      }
       function showSaveFeedback(button) {
         if (window.JBSUI?.showButtonFeedback) {
           JBSUI.showButtonFeedback(button);
@@ -1323,6 +1384,12 @@
           await renderSavedSettings();
           $('settingsDialog')?.showModal();
         });
+        $('importJson').addEventListener('click', () => $('importJsonFile').click());
+        $('importJsonFile').addEventListener('change', async (event) => {
+          const input = event.currentTarget;
+          await importJsonFile(input.files?.[0]);
+          input.value = '';
+        });
         $('saveSettings').addEventListener('click', async (event) => {
           const button = event.currentTarget;
           try {
@@ -1334,6 +1401,7 @@
             alert('設定を保存できませんでした。ブラウザの保存設定を確認してください。');
           }
         });
+        $('exportJson').addEventListener('click', downloadJson);
         $('closeSettings').addEventListener('click', () => $('settingsDialog')?.close());
         $('settingsDialog').addEventListener('click', event => {
           if (event.target === event.currentTarget) event.currentTarget.close();
