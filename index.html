@@ -38,7 +38,7 @@
           <label for="series">大会名</label>
           <div class="jbsui-preset-input">
             <select id="seriesPreset" aria-label="大会名のプリセット"><option value="">選択</option></select>
-            <input id="series" value="" />
+            <input id="series" value="日本選手権" />
           </div>
         </div>
         <div class="jbsui-field">
@@ -57,7 +57,7 @@
               <option>本戦２回戦</option>
               <option>本戦１回戦</option>
             </select>
-            <input id="stage" value="" />
+            <input id="stage" value="決勝" />
             <input id="stagePrefix" type="text" value="" aria-label="試合名補助" />
           </div>
         </div>
@@ -178,7 +178,7 @@
         document.documentElement.removeAttribute('data-jbsui-keyboard-focus');
       });
 
-      const APP_BUILD = '144';
+      const APP_BUILD = '145';
       console.info(`[JBS Thumbnail] build ${APP_BUILD}`);
 
       // common が取得できない場合だけ使う従来マスタ。
@@ -1421,6 +1421,7 @@
         const initialTournament = findTournament('日本選手権');
         if (initialTournament) {
           applyTournamentMaster(initialTournament, { force: true });
+          syncSupplementFromSelections({ force: true });
         } else {
           $('edition').value = '';
           syncSupplementFromSelections({ force: true });
