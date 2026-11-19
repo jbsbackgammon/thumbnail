@@ -21,6 +21,7 @@
         <button class="jbsui-button" id="loadSettings" type="button">設定呼出</button>
         <button class="jbsui-button" id="importJson" type="button">JSON取込</button>
         <input id="importJsonFile" type="file" accept="application/json,.json" hidden />
+        <span class="jbsui-divider" aria-hidden="true"></span>
         <button class="jbsui-button" id="saveSettings" type="button">設定保存</button>
         <button class="jbsui-button" id="exportJson" type="button">JSON出力</button>
       </div>
@@ -177,7 +178,7 @@
         document.documentElement.removeAttribute('data-jbsui-keyboard-focus');
       });
 
-      const APP_BUILD = '142';
+      const APP_BUILD = '143';
       console.info(`[JBS Thumbnail] build ${APP_BUILD}`);
 
       // common が取得できない場合だけ使う従来マスタ。
