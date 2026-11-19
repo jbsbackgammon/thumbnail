@@ -177,7 +177,7 @@
         document.documentElement.removeAttribute('data-jbsui-keyboard-focus');
       });
 
-      const APP_BUILD = '141';
+      const APP_BUILD = '142';
       console.info(`[JBS Thumbnail] build ${APP_BUILD}`);
 
       // common が取得できない場合だけ使う従来マスタ。
@@ -222,6 +222,17 @@
       const ctx = canvas.getContext('2d');
       const FONT_JP = '"Noto Sans JP", "Yu Gothic", "YuGothic", "Hiragino Sans", "Meiryo", sans-serif';
       const FONT_LATIN = FONT_JP;
+      const CANVAS_FONT_SAMPLE = '日本選手権盤聖王名賽棋女新鋭東京大阪名古屋決勝準選手柳';
+      async function ensureCanvasFonts() {
+        if (!document.fonts?.load) return;
+        const loads = [
+          document.fonts.load("800 64px 'Noto Sans JP'", CANVAS_FONT_SAMPLE),
+          document.fonts.load("900 96px 'Noto Sans JP'", CANVAS_FONT_SAMPLE)
+        ];
+        await Promise.allSettled(loads);
+        try { await document.fonts.ready; }
+        catch (_) {}
+      }
 
       const state = {
         leftImage: null,
@@ -1398,6 +1409,11 @@
         populate();
         bind();
 
+        // Canvas text must not render until the actual Japanese web fonts used
+        // by the thumbnail are available. Otherwise the first paint can mix in
+        // fallback glyphs even though later PNG output is correct.
+        await ensureCanvasFonts();
+
         // Match overlay defaults. The edition is always sourced from common.
         $('series').value = '日本選手権';
         $('stage').value = '決勝';
@@ -1416,6 +1432,10 @@
         ]);
         render();
         enableOverlayTransfer();
+
+        // Repaint once if the browser reports a later font-set transition
+        // (for example after a slow cache/network response).
+        document.fonts?.ready?.then(() => render()).catch?.(() => {});
       }
       init();
     })();
