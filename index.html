@@ -11,12 +11,17 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="https://jbsbackgammon.github.io/common/ui.css?v=55" />
+  <link rel="stylesheet" href="https://jbsbackgammon.github.io/common/ui.css?v=56" />
 </head>
 <body class="jbsui jbsui-tool-page jbsui-tool-page--fit-first-view">
     <aside class="jbsui-panel">
       <div class="jbsui-actions">
         <button class="jbsui-button jbsui-button--primary jbsui-button--primary-action" id="downloadBtn" type="button">PNG出力</button>
+        <select id="workSelect" class="jbsui-select jbsui-action-select" aria-label="編集する作業">
+          <option value="1">作業1</option>
+          <option value="2">作業2</option>
+          <option value="3">作業3</option>
+        </select>
         <span class="jbsui-divider" aria-hidden="true"></span>
         <button class="jbsui-button" id="loadSettings" type="button">設定呼出</button>
         <button class="jbsui-button" id="importJson" type="button">JSON取込</button>
@@ -178,7 +183,11 @@
         document.documentElement.removeAttribute('data-jbsui-keyboard-focus');
       });
 
-      const APP_BUILD = '148';
+      const APP_BUILD = '149';
+      const pageQuery = new URLSearchParams(location.search);
+      const work = ['1', '2', '3'].includes(pageQuery.get('work')) ? pageQuery.get('work') : '1';
+      const WORKSPACE_DB_KEY = `workspace-${work}`;
+      const WORKSPACE_FALLBACK_KEY = `jbs-thumbnail-workspace-${work}`;
       console.info(`[JBS Thumbnail] build ${APP_BUILD}`);
 
       // common が取得できない場合だけ使う従来マスタ。
@@ -264,6 +273,51 @@
           tx.onerror = () => db.close();
         });
       }
+      function currentWorkspaceSnapshot() {
+        return {
+          fields: Object.fromEntries(SAVED_FIELDS.map(id => [id, $(id).value])),
+          files: { ...savedFiles },
+          savedAt: new Date().toISOString()
+        };
+      }
+      async function saveWorkspace() {
+        const snapshot = currentWorkspaceSnapshot();
+        try {
+          await savedSnapshot('save', snapshot, WORKSPACE_DB_KEY);
+        } catch (error) {
+          console.warn('作業内容をIndexedDBへ保存できませんでした。', error);
+        }
+        try {
+          localStorage.setItem(WORKSPACE_FALLBACK_KEY, JSON.stringify({
+            fields: snapshot.fields,
+            files: { left: null, right: null, bg: null },
+            savedAt: snapshot.savedAt
+          }));
+        } catch (error) {
+          console.warn('作業内容をlocalStorageへ保存できませんでした。', error);
+        }
+      }
+      async function loadWorkspace() {
+        try {
+          const snapshot = await savedSnapshot('load', undefined, WORKSPACE_DB_KEY);
+          if (snapshot?.fields) return snapshot;
+        } catch (error) {
+          console.warn('IndexedDBから作業内容を読み込めませんでした。', error);
+        }
+        try {
+          const snapshot = JSON.parse(localStorage.getItem(WORKSPACE_FALLBACK_KEY) || 'null');
+          return snapshot?.fields ? snapshot : null;
+        } catch {
+          return null;
+        }
+      }
+      let workspaceSaveTimer = 0;
+      function scheduleWorkspaceSave() {
+        clearTimeout(workspaceSaveTimer);
+        workspaceSaveTimer = setTimeout(() => {
+          saveWorkspace().catch(error => console.warn('作業内容を自動保存できませんでした。', error));
+        }, 150);
+      }
       async function loadHistory() {
         try {
           const history = await savedSnapshot('load', undefined, 'history');
@@ -348,8 +402,7 @@
         localStorage.setItem(SETTINGS_HISTORY_KEY, JSON.stringify(fallbackHistory));
         return indexedDbSaved || fallbackHistory.length > 0;
       }
-      async function restoreHistory(index) {
-        const snapshot = (await loadHistory())[index];
+      async function applySnapshot(snapshot, { closeDialog = true } = {}) {
         if (!snapshot?.fields) return;
         for (const id of SAVED_FIELDS) {
           if (typeof snapshot.fields[id] === 'string') $(id).value = snapshot.fields[id];
@@ -381,7 +434,11 @@
         if (bgSrc) URL.revokeObjectURL(bgSrc);
         $('bgPhotoStatus').textContent = savedFiles.bg?.name || '';
         render();
-        $('settingsDialog')?.close();
+        if (closeDialog) $('settingsDialog')?.close();
+      }
+      async function restoreHistory(index) {
+        const snapshot = (await loadHistory())[index];
+        await applySnapshot(snapshot);
       }
 
       function hexToRgb(hex) {
@@ -1221,6 +1278,15 @@
         }
       }
       function bind() {
+        const workSelect = $('workSelect');
+        workSelect.value = work;
+        workSelect.addEventListener('change', async () => {
+          await saveWorkspace();
+          location.href = `?work=${workSelect.value}`;
+        });
+        document.querySelector('aside')?.addEventListener('input', scheduleWorkspaceSave);
+        document.querySelector('aside')?.addEventListener('change', scheduleWorkspaceSave);
+
         ['sponsor','edition','stagePrefix','bgMode','bgX','bgY','bgScale','bgShade','leftName','leftRoman','rightName','rightRoman']
           .forEach(id => $(id).addEventListener('input', render));
         $('supplement').addEventListener('input', () => {
@@ -1442,7 +1508,12 @@
         // Populate player choices afterward without delaying either preview paint.
         await memberPromise;
         populate();
-        render();
+        const workspaceSnapshot = await loadWorkspace();
+        if (workspaceSnapshot?.fields) {
+          await applySnapshot(workspaceSnapshot, { closeDialog: false });
+        } else {
+          render();
+        }
 
         // Repaint once if the browser reports a later font-set transition
         // (for example after a slow cache/network response).
