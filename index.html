@@ -178,7 +178,7 @@
         document.documentElement.removeAttribute('data-jbsui-keyboard-focus');
       });
 
-      const APP_BUILD = '147';
+      const APP_BUILD = '148';
       console.info(`[JBS Thumbnail] build ${APP_BUILD}`);
 
       // common が取得できない場合だけ使う従来マスタ。
@@ -1406,17 +1406,26 @@
       }
 
       async function init() {
-        // Start member loading in parallel, but do not block the initial
-        // thumbnail preview on the member list.
-        const memberPromise = loadMemberPlayers();
-
-        // The first visible canvas paint waits only for the tournament master
-        // and the actual Japanese canvas fonts.
-        await Promise.all([loadCommonBrand(), ensureCanvasFonts()]);
+        // First paint must never wait for network or web-font loading.
+        // Use the built-in tournament master to show 日本選手権・決勝 immediately.
         populate();
         bind();
+        $('series').value = '日本選手権';
+        $('stage').value = '決勝';
+        const fallbackInitialTournament = findTournament('日本選手権');
+        if (fallbackInitialTournament) {
+          applyTournamentMaster(fallbackInitialTournament, { force: true });
+        } else {
+          render();
+        }
+        render();
+        enableOverlayTransfer();
 
-        // Match overlay defaults. The edition is always sourced from common.
+        // Load external data and the actual canvas fonts in parallel, then
+        // repaint with the current official edition, colors and Noto Sans JP.
+        const memberPromise = loadMemberPlayers();
+        await Promise.all([loadCommonBrand(), ensureCanvasFonts()]);
+
         $('series').value = '日本選手権';
         $('stage').value = '決勝';
         const initialTournament = findTournament('日本選手権');
@@ -1427,13 +1436,10 @@
           $('edition').value = '';
           syncSupplementFromSelections({ force: true });
         }
-
-        // Explicitly paint the default tournament immediately so the preview
-        // itself, not only the input fields, starts as 日本選手権・決勝.
+        populate();
         render();
-        enableOverlayTransfer();
 
-        // Populate player choices afterward without delaying the initial preview.
+        // Populate player choices afterward without delaying either preview paint.
         await memberPromise;
         populate();
         render();
