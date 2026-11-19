@@ -183,7 +183,7 @@
         document.documentElement.removeAttribute('data-jbsui-keyboard-focus');
       });
 
-      const APP_BUILD = '150';
+      const APP_BUILD = '151';
       const pageQuery = new URLSearchParams(location.search);
       const work = ['1', '2', '3'].includes(pageQuery.get('work')) ? pageQuery.get('work') : '1';
       const WORKSPACE_DB_KEY = `workspace-${work}`;
@@ -1296,6 +1296,68 @@
           console.error('[JBS Thumbnail] member の選手一覧を取得できませんでした。', error);
         }
       }
+      function currentSettingsFields() {
+        return Object.fromEntries(SAVED_FIELDS.map(id => [id, $(id).value]));
+      }
+      function downloadJson() {
+        const fields = currentSettingsFields();
+        const payload = {
+          version: 1,
+          exportedAt: new Date().toISOString(),
+          fields
+        };
+        const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        const details = settingsNamingDetails(fields);
+        link.download = window.JBSNaming?.makeFileName
+          ? JBSNaming.makeFileName({ prefix: 'サムネイル', ...details })
+          : 'thumbnail_settings.json';
+        link.href = url;
+        link.click();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+      }
+      async function importJsonFile(file) {
+        if (!file) return;
+        try {
+          const parsed = JSON.parse(await file.text());
+          const imported = parsed?.fields && typeof parsed.fields === 'object' ? parsed.fields : parsed;
+          if (!imported || typeof imported !== 'object' || Array.isArray(imported)) throw new Error();
+
+          const fields = {};
+          for (const id of SAVED_FIELDS) {
+            if (Object.hasOwn(imported, id) && typeof imported[id] === 'string') fields[id] = imported[id];
+          }
+          if (!Object.keys(fields).length) throw new Error();
+
+          await applySnapshot({
+            fields,
+            files: { left: null, right: null, bg: null },
+            savedAt: parsed?.exportedAt || new Date().toISOString()
+          }, { closeDialog: false });
+          scheduleWorkspaceSave();
+        } catch (error) {
+          console.error('JSON設定を読み込めませんでした。', error);
+          alert('JSON設定を読み込めませんでした。サムネイルから出力したJSONファイルを選択してください。');
+        }
+      }
+      function showSaveFeedback(button) {
+        if (window.JBSUI?.showButtonFeedback) {
+          JBSUI.showButtonFeedback(button);
+          return;
+        }
+        const originalText = button.textContent;
+        const originalDisabled = button.disabled;
+        button.textContent = '保存完了';
+        button.classList.add('jbsui-button--complete');
+        button.disabled = true;
+        setTimeout(() => {
+          button.textContent = originalText;
+          button.classList.remove('jbsui-button--complete');
+          button.disabled = originalDisabled;
+        }, 2000);
+      }
+
       function populate() {
         const seriesPreset = $('seriesPreset');
         seriesPreset.replaceChildren(new Option('選択', ''));
