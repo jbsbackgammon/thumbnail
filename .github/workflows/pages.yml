@@ -27,6 +27,25 @@ jobs:
       - name: Generate player master
         run: node scripts/generate-players.mjs
 
+      - name: Validate thumbnail editor script
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const html = fs.readFileSync('index.html', 'utf8');
+          const scripts = [...html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi)];
+          const inline = scripts.at(-1)?.[1] || '';
+          if (!inline.trim()) throw new Error('Inline editor script was not found.');
+          new Function(inline);
+          for (const name of ['downloadJson', 'importJsonFile', 'showSaveFeedback', 'init']) {
+            const pattern = new RegExp('(?:async\\s+)?function\\s+' + name + '\\s*\\(');
+            if (!pattern.test(inline)) throw new Error(name + ' is required by the editor but is not defined.');
+          }
+          if (!inline.includes("addEventListener('click', downloadJson)")) {
+            throw new Error('JSON export binding is missing.');
+          }
+          console.log('Thumbnail editor static validation passed.');
+          NODE
+
       - name: Configure Pages
         uses: actions/configure-pages@v6
 
