@@ -168,7 +168,7 @@
         document.documentElement.removeAttribute('data-jbsui-keyboard-focus');
       });
 
-      const APP_BUILD = '138';
+      const APP_BUILD = '139';
       console.info(`[JBS Thumbnail] build ${APP_BUILD}`);
 
       // common が取得できない場合だけ使う従来マスタ。
@@ -223,6 +223,7 @@
       };
       const SAVED_FIELDS = ['edition','series','stage','stagePrefix','leftPlayer','leftName','leftRoman','rightPlayer','rightName','rightRoman','sponsor','supplement','bgMode','bgX','bgY','bgScale','bgShade','mainColor','subColor'];
       const savedFiles = { left: null, right: null, bg: null };
+      const SETTINGS_HISTORY_KEY = 'jbs-thumbnail-settings-history';
       function openSavedDb() {
         return new Promise((resolve, reject) => {
           const request = indexedDB.open('jbs-thumbnail-settings', 1);
@@ -243,10 +244,20 @@
         });
       }
       async function loadHistory() {
-        const history = await savedSnapshot('load', undefined, 'history');
-        if (Array.isArray(history)) return history;
-        const previous = await savedSnapshot('load');
-        return previous?.fields ? [previous] : [];
+        try {
+          const history = await savedSnapshot('load', undefined, 'history');
+          if (Array.isArray(history)) return history;
+          const previous = await savedSnapshot('load');
+          if (previous?.fields) return [previous];
+        } catch (error) {
+          console.warn('IndexedDBから保存設定を読み込めませんでした。localStorageを使用します。', error);
+        }
+        try {
+          const history = JSON.parse(localStorage.getItem(SETTINGS_HISTORY_KEY) || '[]');
+          return Array.isArray(history) ? history : [];
+        } catch {
+          return [];
+        }
       }
       function filenameFor(fields) {
         const series = [fields.series?.trim(), fields.seriesSubtitle?.trim()].filter(Boolean).join('');
@@ -296,7 +307,25 @@
       async function saveCurrentSettings() {
         const fields = Object.fromEntries(SAVED_FIELDS.map(id => [id, $(id).value]));
         const history = [{ fields, files: { ...savedFiles }, savedAt: new Date().toISOString() }, ...await loadHistory()].slice(0, 100);
-        await savedSnapshot('save', history, 'history');
+
+        // Save the full snapshot, including File objects, to IndexedDB when available.
+        let indexedDbSaved = false;
+        try {
+          await savedSnapshot('save', history, 'history');
+          indexedDbSaved = true;
+        } catch (error) {
+          console.warn('IndexedDBへ設定を保存できませんでした。localStorageへ保存します。', error);
+        }
+
+        // Always keep a metadata-only fallback so settings remain usable even
+        // when IndexedDB is unavailable. File objects are intentionally omitted.
+        const fallbackHistory = history.map(snapshot => ({
+          fields: snapshot.fields,
+          files: { left: null, right: null, bg: null },
+          savedAt: snapshot.savedAt
+        }));
+        localStorage.setItem(SETTINGS_HISTORY_KEY, JSON.stringify(fallbackHistory));
+        return indexedDbSaved || fallbackHistory.length > 0;
       }
       async function restoreHistory(index) {
         const snapshot = (await loadHistory())[index];
@@ -1214,6 +1243,22 @@
           });
         }
       }
+      function showSaveFeedback(button) {
+        if (window.JBSUI?.showButtonFeedback) {
+          JBSUI.showButtonFeedback(button);
+          return;
+        }
+        const originalText = button.textContent;
+        const originalDisabled = button.disabled;
+        button.textContent = '保存完了';
+        button.classList.add('jbsui-button--complete');
+        button.disabled = true;
+        setTimeout(() => {
+          button.textContent = originalText;
+          button.classList.remove('jbsui-button--complete');
+          button.disabled = originalDisabled;
+        }, 2000);
+      }
       function bind() {
         ['sponsor','edition','stagePrefix','bgMode','bgX','bgY','bgScale','bgShade','leftName','leftRoman','rightName','rightRoman']
           .forEach(id => $(id).addEventListener('input', render));
@@ -1279,9 +1324,11 @@
           $('settingsDialog')?.showModal();
         });
         $('saveSettings').addEventListener('click', async (event) => {
+          const button = event.currentTarget;
           try {
-            await saveCurrentSettings();
-            JBSUI.showButtonFeedback(event.currentTarget);
+            const saved = await saveCurrentSettings();
+            if (!saved) throw new Error('設定を保存できませんでした。');
+            showSaveFeedback(button);
           } catch (error) {
             console.error('設定保存に失敗しました。', error);
             alert('設定を保存できませんでした。ブラウザの保存設定を確認してください。');
