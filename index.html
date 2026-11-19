@@ -35,19 +35,29 @@
         </div>
         <div class="jbsui-field">
           <label for="series">大会名</label>
-          <div class="jbsui-preset-picker">
-            <button class="jbsui-preset-button" id="seriesPresetButton" type="button" aria-controls="seriesPresetMenu" aria-expanded="false">選択</button>
+          <div class="jbsui-preset-input">
+            <select id="seriesPreset" aria-label="大会名のプリセット"><option value="">選択</option></select>
             <input id="series" value="" />
-            <div class="jbsui-combo-menu hidden" id="seriesPresetMenu"></div>
           </div>
         </div>
         <div class="jbsui-field">
           <label for="stage">試合名</label>
-          <div class="jbsui-preset-picker jbsui-preset-picker--detail">
-            <button class="jbsui-preset-button" id="stagePresetButton" type="button" aria-controls="stagePresetMenu" aria-expanded="false">選択</button>
+          <div class="jbsui-preset-input jbsui-preset-input--detail">
+            <select id="stagePreset" aria-label="試合名のプリセット">
+              <option value="">選択</option>
+              <option>決勝</option>
+              <option>準決勝</option>
+              <option>準々決勝</option>
+              <option>３回戦</option>
+              <option>２回戦</option>
+              <option>１回戦</option>
+              <option>プレーオフ</option>
+              <option>本戦３回戦</option>
+              <option>本戦２回戦</option>
+              <option>本戦１回戦</option>
+            </select>
             <input id="stage" value="" />
             <input id="stagePrefix" type="text" value="" aria-label="試合名補助" />
-            <div class="jbsui-combo-menu hidden" id="stagePresetMenu"></div>
           </div>
         </div>
         <div class="jbsui-field">
@@ -63,12 +73,10 @@
             <button type="button" class="jbsui-player-photo-picker" id="leftPhotoButton" aria-label="左選手の写真を変更" title="クリックして写真を変更">
               <img class="jbsui-player-photo-preview" id="leftPhotoPreview" src="https://jbsbackgammon.github.io/overlay/assets/dummy.png" alt="">
             </button>
-            <div class="jbsui-preset-picker">
-              <button class="jbsui-preset-button" id="leftPlayerButton" type="button" aria-controls="leftPlayerMenu" aria-expanded="false">選択</button>
+            <div class="jbsui-preset-input">
+              <select id="leftPlayer" aria-label="左選手名の選択"><option value="">選択</option></select>
               <input id="leftName" />
-              <div class="jbsui-combo-menu hidden" id="leftPlayerMenu"></div>
             </div>
-            <input id="leftPlayer" type="hidden" value="" />
             <input class="jbsui-file-input" id="leftPhotoOverride" type="file" accept="image/*" aria-label="左選手の写真ファイル" />
           </div>
           <input class="jbsui-player-english-input" id="leftRoman" aria-label="左選手名（英語）" placeholder="English" />
@@ -79,12 +87,10 @@
             <button type="button" class="jbsui-player-photo-picker" id="rightPhotoButton" aria-label="右選手の写真を変更" title="クリックして写真を変更">
               <img class="jbsui-player-photo-preview" id="rightPhotoPreview" src="https://jbsbackgammon.github.io/overlay/assets/dummy.png" alt="">
             </button>
-            <div class="jbsui-preset-picker">
-              <button class="jbsui-preset-button" id="rightPlayerButton" type="button" aria-controls="rightPlayerMenu" aria-expanded="false">選択</button>
+            <div class="jbsui-preset-input">
+              <select id="rightPlayer" aria-label="右選手名の選択"><option value="">選択</option></select>
               <input id="rightName" />
-              <div class="jbsui-combo-menu hidden" id="rightPlayerMenu"></div>
             </div>
-            <input id="rightPlayer" type="hidden" value="" />
             <input class="jbsui-file-input" id="rightPhotoOverride" type="file" accept="image/*" aria-label="右選手の写真ファイル" />
           </div>
           <input class="jbsui-player-english-input" id="rightRoman" aria-label="右選手名（英語）" placeholder="English" />
@@ -171,7 +177,7 @@
         document.documentElement.removeAttribute('data-jbsui-keyboard-focus');
       });
 
-      const APP_BUILD = '140';
+      const APP_BUILD = '141';
       console.info(`[JBS Thumbnail] build ${APP_BUILD}`);
 
       // common が取得できない場合だけ使う従来マスタ。
@@ -1186,139 +1192,21 @@
           console.error('[JBS Thumbnail] member の選手一覧を取得できませんでした。', error);
         }
       }
-      function closePresetMenus(exceptMenu = null) {
-        for (const menuId of ['seriesPresetMenu','stagePresetMenu','leftPlayerMenu','rightPlayerMenu']) {
-          const menu = $(menuId);
-          if (!menu || menu === exceptMenu) continue;
-          menu.classList.add('hidden');
-          const buttonId = menuId.replace('Menu', 'Button');
-          $(buttonId)?.setAttribute('aria-expanded', 'false');
-        }
-      }
-      function togglePresetMenu(buttonId, menuId) {
-        const button = $(buttonId);
-        const menu = $(menuId);
-        if (!button || !menu) return;
-        const willOpen = menu.classList.contains('hidden');
-        closePresetMenus(willOpen ? menu : null);
-        menu.classList.toggle('hidden', !willOpen);
-        button.setAttribute('aria-expanded', String(willOpen));
-      }
-      function addPresetItem(menu, label, onChoose) {
-        const item = document.createElement('button');
-        item.type = 'button';
-        item.textContent = label;
-        item.addEventListener('click', async () => {
-          await onChoose();
-          closePresetMenus();
-        });
-        menu.appendChild(item);
-      }
       function populate() {
-        const seriesMenu = $('seriesPresetMenu');
-        seriesMenu.replaceChildren();
+        const seriesPreset = $('seriesPreset');
+        seriesPreset.replaceChildren(new Option('選択', ''));
         tournaments.forEach((master) => {
-          addPresetItem(seriesMenu, master.name, () => {
-            $('series').value = master.name;
-            applyTournamentMaster(master, { force: true });
-          });
+          seriesPreset.add(new Option(master.name, master.name));
         });
-
-        const stageMenu = $('stagePresetMenu');
-        stageMenu.replaceChildren();
-        ['決勝','準決勝','準々決勝','３回戦','２回戦','１回戦','プレーオフ','本戦３回戦','本戦２回戦','本戦１回戦']
-          .forEach((value) => {
-            addPresetItem(stageMenu, value, () => {
-              $('stage').value = value;
-              syncSupplementFromSelections();
-              render();
-            });
-          });
-
-        for (const side of ['left','right']) {
-          const menu = $(side + 'PlayerMenu');
-          menu.replaceChildren();
+        for (const side of ['left', 'right']) {
+          const select = $(side + 'Player');
+          select.replaceChildren(new Option('選択', ''));
           players.forEach((player) => {
-            addPresetItem(menu, player.name, async () => {
-              $(side + 'Player').value = '';
-              await applyPlayer(side, player.id, true);
-            });
+            const option = new Option(player.name, player.id);
+            option.dataset.roman = player.roman || '';
+            select.add(option);
           });
         }
-      }
-      function currentSettingsFields() {
-        return Object.fromEntries(SAVED_FIELDS.map(id => [id, $(id).value]));
-      }
-      function downloadJson() {
-        const fields = currentSettingsFields();
-        const payload = { version: 1, exportedAt: new Date().toISOString(), fields };
-        const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        const details = settingsNamingDetails(fields);
-        link.download = window.JBSNaming?.makeFileName
-          ? JBSNaming.makeFileName({ prefix: 'サムネイル', ...details })
-          : 'thumbnail_settings.json';
-        link.href = url;
-        link.click();
-        setTimeout(() => URL.revokeObjectURL(url), 1000);
-      }
-      async function importJsonFile(file) {
-        if (!file) return;
-        try {
-          const parsed = JSON.parse(await file.text());
-          const imported = parsed?.fields && typeof parsed.fields === 'object' ? parsed.fields : parsed;
-          if (!imported || typeof imported !== 'object' || Array.isArray(imported)) throw new Error();
-          let importedCount = 0;
-          for (const id of SAVED_FIELDS) {
-            if (Object.hasOwn(imported, id) && typeof imported[id] === 'string') {
-              $(id).value = imported[id];
-              importedCount += 1;
-            }
-          }
-          if (!importedCount) throw new Error();
-          if (imported.seriesSubtitle && !$('series').value.endsWith(imported.seriesSubtitle)) {
-            $('series').value += imported.seriesSubtitle;
-          }
-          lastTournamentKey = tournamentKey(findTournamentForCurrentFields()) || $('series').value.trim();
-          for (const side of ['left', 'right']) {
-            const player = players.find(p => p.name === $(side + 'Name').value.trim());
-            savedFiles[side] = null;
-            state[side + 'Override'] = false;
-            if (player?.photo) {
-              syncPlayerPhotoPreview(side, player.photo);
-              try { state[side + 'Image'] = await loadImage(player.photo); }
-              catch { state[side + 'Image'] = null; }
-            } else {
-              state[side + 'Image'] = null;
-              syncPlayerPhotoPreview(side, '');
-            }
-            $(side + 'Player').value = '';
-          }
-          savedFiles.bg = null;
-          state.bgImage = null;
-          $('bgPhotoStatus').textContent = '';
-          render();
-        } catch (error) {
-          console.error('JSON設定を読み込めませんでした。', error);
-          alert('JSON設定を読み込めませんでした。サムネイルから出力したJSONファイルを選択してください。');
-        }
-      }
-      function showSaveFeedback(button) {
-        if (window.JBSUI?.showButtonFeedback) {
-          JBSUI.showButtonFeedback(button);
-          return;
-        }
-        const originalText = button.textContent;
-        const originalDisabled = button.disabled;
-        button.textContent = '保存完了';
-        button.classList.add('jbsui-button--complete');
-        button.disabled = true;
-        setTimeout(() => {
-          button.textContent = originalText;
-          button.classList.remove('jbsui-button--complete');
-          button.disabled = originalDisabled;
-        }, 2000);
       }
       function bind() {
         ['sponsor','edition','stagePrefix','bgMode','bgX','bgY','bgScale','bgShade','leftName','leftRoman','rightName','rightRoman']
@@ -1345,25 +1233,32 @@
           code.addEventListener('blur', () => { code.value = $(id).value.toUpperCase(); });
         }
         $('bgMode').addEventListener('change', render);
-        for (const [buttonId, menuId] of [
-          ['seriesPresetButton','seriesPresetMenu'],
-          ['stagePresetButton','stagePresetMenu'],
-          ['leftPlayerButton','leftPlayerMenu'],
-          ['rightPlayerButton','rightPlayerMenu']
-        ]) {
-          $(buttonId).addEventListener('click', (event) => {
-            event.stopPropagation();
-            togglePresetMenu(buttonId, menuId);
-          });
-        }
-        document.addEventListener('click', (event) => {
-          if (!event.target.closest('.jbsui-preset-picker')) closePresetMenus();
+        $('seriesPreset').addEventListener('change', () => {
+          const select = $('seriesPreset');
+          if (!select.value) return;
+          const value = select.value;
+          const master = findTournament(value);
+          $('series').value = value;
+          applyTournamentMaster(master, { force: true });
+          select.value = '';
         });
-        document.addEventListener('keydown', (event) => {
-          if (event.key === 'Escape') closePresetMenus();
+        $('stagePreset').addEventListener('change', () => {
+          const select = $('stagePreset');
+          if (!select.value) return;
+          $('stage').value = select.value;
+          syncSupplementFromSelections();
+          render();
+          select.value = '';
         });
 
         for (const side of ['left', 'right']) {
+          const select = $(side + 'Player');
+          select.addEventListener('change', async () => {
+            if (!select.value) return;
+            const id = select.value;
+            await applyPlayer(side, id, true);
+            select.value = '';
+          });
           $(`${side}PhotoButton`).addEventListener('click', () => $(`${side}PhotoOverride`).click());
           $(`${side}PhotoOverride`).addEventListener('change', (event) => {
             const file = event.target.files[0];
