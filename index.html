@@ -49,19 +49,7 @@
         <div class="jbsui-field">
           <label for="stage">試合名</label>
           <div class="jbsui-preset-input jbsui-preset-input--detail">
-            <select id="stagePreset" aria-label="試合名のプリセット">
-              <option value="">選択</option>
-              <option>決勝</option>
-              <option>準決勝</option>
-              <option>準々決勝</option>
-              <option>３回戦</option>
-              <option>２回戦</option>
-              <option>１回戦</option>
-              <option>プレーオフ</option>
-              <option>本戦３回戦</option>
-              <option>本戦２回戦</option>
-              <option>本戦１回戦</option>
-            </select>
+            <select id="stagePreset" aria-label="試合名のプリセット"><option value="">選択</option></select>
             <input id="stage" value="決勝" />
             <input id="stagePrefix" type="text" value="" aria-label="試合名補助" placeholder="補足" />
           </div>
@@ -167,7 +155,7 @@
       </div>
       <div class="jbsui-saved-settings" id="savedSettings"></div>
     </dialog>
-  <script src="https://jbsbackgammon.github.io/common/brand.js"></script>
+  <script src="https://jbsbackgammon.github.io/common/brand.js?v=8"></script>
   <script src="https://jbsbackgammon.github.io/common/naming.js?v=1"></script>
   <script src="https://jbsbackgammon.github.io/common/ui.js?v=2"></script>
   <script>
@@ -183,7 +171,7 @@
         document.documentElement.removeAttribute('data-jbsui-keyboard-focus');
       });
 
-      const APP_BUILD = '152';
+      const APP_BUILD = '153';
       const pageQuery = new URLSearchParams(location.search);
       const work = ['1', '2', '3'].includes(pageQuery.get('work')) ? pageQuery.get('work') : '1';
       const WORKSPACE_DB_KEY = `workspace-${work}`;
@@ -209,7 +197,8 @@
       }));
       let tournaments = FALLBACK_TOURNAMENTS.map(entry => ({ ...entry }));
       let commonBrandReady = false;
-      const STAGE_ENGLISH = Object.freeze({
+      // Legacy footer recognition only; current choices and English come from common.
+      const LEGACY_STAGE_ENGLISH = Object.freeze({
         '決勝': 'FINAL',
         '準決勝': 'SEMIFINAL',
         '準々決勝': 'QUARTERFINAL',
@@ -443,8 +432,9 @@
           if (!$('mainColor').value && restoredMaster.color) $('mainColor').value = restoredMaster.color;
           if (!$('subColor').value) $('subColor').value = restoredMaster.subColor || makeSubColor(restoredMaster.color || $('mainColor').value);
           if (!$('stage').value.trim() && restoredMaster.name === '日本選手権') $('stage').value = '決勝';
-          if (!$('supplement').value.trim()) syncSupplementFromSelections({ force: true });
         }
+        refreshStageOptions();
+        restoreAutoSupplement(restoredMaster);
         lastTournamentKey = tournamentKey(restoredMaster) || $('series').value.trim();
         for (const side of ['left', 'right']) {
           const player = players.find(p => p.id === $(`${side}Player`).value)
@@ -561,10 +551,38 @@
         return findTournament(series)
           || findTournament(`${series}オープン`);
       }
+      function getStageRounds() {
+        const master = findTournamentForCurrentFields();
+        if (commonBrandReady && window.JBSBrand?.getMatchRounds) {
+          return window.JBSBrand.getMatchRounds(master?.id || $('series').value);
+        }
+        // When common is unavailable, never guess a bracket-specific translation.
+        return ['決勝', '準決勝', '準々決勝'].map(name => ({ name, nameEn: LEGACY_STAGE_ENGLISH[name] }));
+      }
+      function refreshStageOptions() {
+        const select = $('stagePreset');
+        select.replaceChildren(new Option('選択', ''));
+        getStageRounds().forEach(round => select.add(new Option(round.name, round.name)));
+        select.value = '';
+      }
+      function stageEnglishFor(stage) {
+        const key = String(stage || '').trim().normalize('NFKC');
+        return getStageRounds().find(round => round.name.normalize('NFKC') === key)?.nameEn;
+      }
+      function restoreAutoSupplement(master) {
+        lastAutoSupplement = '';
+        if (!master?.nameEn) return;
+        const stage = $('stage').value.trim();
+        const current = $('supplement').value.trim();
+        const generated = [stageEnglishFor(stage), LEGACY_STAGE_ENGLISH[stage]]
+          .filter(Boolean).map(english => ('JBS ' + master.nameEn + ' ' + english).replace(/\s+/g, ' ').trim());
+        if (generated.includes(current)) lastAutoSupplement = current;
+        syncSupplementFromSelections();
+      }
       function syncSupplementFromSelections({ force = false } = {}) {
         const master = findTournamentForCurrentFields();
         const stage = $('stage').value.trim();
-        const stageEn = STAGE_ENGLISH[stage];
+        const stageEn = stageEnglishFor(stage);
         const current = $('supplement').value.trim();
         const canReplace = force || !current || current === lastAutoSupplement;
 
@@ -582,6 +600,7 @@
         lastAutoSupplement = value;
       }
       function applyTournamentMaster(master, { force = false } = {}) {
+        refreshStageOptions();
         const key = tournamentKey(master) || $('series').value.trim();
         if (!force && key === lastTournamentKey) {
           render();
@@ -1359,6 +1378,7 @@
       }
 
       function populate() {
+        refreshStageOptions();
         const seriesPreset = $('seriesPreset');
         seriesPreset.replaceChildren(new Option('選択', ''));
         tournaments.forEach((master) => {
@@ -1536,6 +1556,7 @@
         $('subColor').value = normalizeHex(text(fields.subColor)) || makeSubColor(color);
         // Keep custom editions and theme colors instead of restoring presets.
         lastTournamentKey = tournamentKey(master) || $('series').value.trim();
+        refreshStageOptions();
         syncSupplementFromSelections({ force: true });
         await Promise.all([
           importOverlayPlayer('left', text(fields.leftName), text(fields.leftRoman), fields.leftPhoto),
@@ -1572,7 +1593,6 @@
           render();
         }
         render();
-        enableOverlayTransfer();
 
         // Load external data and the actual canvas fonts in parallel, then
         // repaint with the current official edition, colors and Noto Sans JP.
@@ -1608,6 +1628,7 @@
           render();
         }
         workspaceAutoSaveEnabled = true;
+        enableOverlayTransfer();
 
         // Repaint once if the browser reports a later font-set transition
         // (for example after a slow cache/network response).

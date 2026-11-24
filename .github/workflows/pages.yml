@@ -47,6 +47,9 @@ jobs:
           console.log('Thumbnail editor static validation passed.');
           NODE
 
+      - name: Validate tournament-specific match options
+        run: node scripts/check-match-rounds.cjs
+
       - name: Configure Pages
         uses: actions/configure-pages@v6
 
