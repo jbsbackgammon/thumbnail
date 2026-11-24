@@ -169,7 +169,7 @@
     </dialog>
   <script src="https://jbsbackgammon.github.io/common/brand.js"></script>
   <script src="https://jbsbackgammon.github.io/common/naming.js?v=1"></script>
-  <script src="https://jbsbackgammon.github.io/common/ui.js?v=1"></script>
+  <script src="https://jbsbackgammon.github.io/common/ui.js?v=2"></script>
   <script>
     (() => {
       'use strict';
@@ -183,7 +183,7 @@
         document.documentElement.removeAttribute('data-jbsui-keyboard-focus');
       });
 
-      const APP_BUILD = '151';
+      const APP_BUILD = '152';
       const pageQuery = new URLSearchParams(location.search);
       const work = ['1', '2', '3'].includes(pageQuery.get('work')) ? pageQuery.get('work') : '1';
       const WORKSPACE_DB_KEY = `workspace-${work}`;
@@ -1408,31 +1408,21 @@
           code.addEventListener('blur', () => { code.value = $(id).value.toUpperCase(); });
         }
         $('bgMode').addEventListener('change', render);
-        $('seriesPreset').addEventListener('change', () => {
-          const select = $('seriesPreset');
-          if (!select.value) return;
-          const value = select.value;
+        JBSUI.bindPresetSelect($('seriesPreset'), value => {
           const master = findTournament(value);
           $('series').value = value;
           applyTournamentMaster(master, { force: true });
-          select.value = '';
         });
-        $('stagePreset').addEventListener('change', () => {
-          const select = $('stagePreset');
-          if (!select.value) return;
-          $('stage').value = select.value;
+        JBSUI.bindPresetSelect($('stagePreset'), value => {
+          $('stage').value = value;
           syncSupplementFromSelections();
           render();
-          select.value = '';
         });
 
         for (const side of ['left', 'right']) {
-          const select = $(side + 'Player');
-          select.addEventListener('change', async () => {
-            if (!select.value) return;
-            const id = select.value;
+          JBSUI.bindPresetSelect($(side + 'Player'), async id => {
             await applyPlayer(side, id, true);
-            select.value = '';
+            scheduleWorkspaceSave();
           });
           $(`${side}PhotoButton`).addEventListener('click', () => $(`${side}PhotoOverride`).click());
           $(`${side}PhotoOverride`).addEventListener('change', (event) => {
