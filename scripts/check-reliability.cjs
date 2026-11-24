@@ -1,0 +1,15 @@
+'use strict';
+const assert=require('node:assert/strict'),fs=require('node:fs');
+const html=fs.readFileSync('index.html','utf8');
+const a=html.indexOf('      function validateSettingsFields('), b=html.indexOf('      function normalizeSnapshotWithCurrentMaster(',a);
+const validate=Function('SAVED_FIELDS',html.slice(a,b)+'\nreturn validateSettingsFields;')(['series','stage','mainColor','bgMode','bgScale']);
+assert.equal(validate({series:'日本選手権',stage:'決勝'},true).stage,'決勝');
+assert.throws(()=>validate({mainColor:'url(x)'},true));
+assert.throws(()=>validate({bgScale:'9999'},true));
+assert.throws(()=>validate({series:5},true));
+assert.throws(()=>validate({bgMode:'unknown'},true));
+assert.equal(validate({mainColor:'oops',stage:'決勝'}).stage,'決勝');
+assert.ok(html.includes('workspaceWrite = workspaceWrite.catch'));
+assert.ok(html.includes('tx.oncomplete = () => { db.close(); resolve(result); }'));
+assert.ok(html.includes('request !== photoEpoch[side]'));
+console.log('Thumbnail validated settings and storage/async guards passed.');

@@ -12,6 +12,9 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://jbsbackgammon.github.io/common/ui.css" />
+  <link rel="icon" href="https://jbsbackgammon.github.io/favicon.ico">
+  <link rel="icon" type="image/png" sizes="32x32" href="https://jbsbackgammon.github.io/favicon-32x32.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="https://jbsbackgammon.github.io/apple-touch-icon.png">
 </head>
 <body class="jbsui jbsui-tool-page jbsui-tool-page--fit-first-view">
     <aside class="jbsui-panel">
@@ -155,8 +158,8 @@
       </div>
       <div class="jbsui-saved-settings" id="savedSettings"></div>
     </dialog>
-  <script src="https://jbsbackgammon.github.io/common/brand.js?v=9"></script>
-  <script src="https://jbsbackgammon.github.io/common/members.js"></script>
+  <script src="https://jbsbackgammon.github.io/common/brand.js?v=10"></script>
+  <script src="https://jbsbackgammon.github.io/common/members.js?v=2"></script>
   <script src="https://jbsbackgammon.github.io/common/naming.js?v=1"></script>
   <script src="https://jbsbackgammon.github.io/common/ui.js?v=2"></script>
   <script>
@@ -172,7 +175,7 @@
         document.documentElement.removeAttribute('data-jbsui-keyboard-focus');
       });
 
-      const APP_BUILD = '155';
+      const APP_BUILD = '156';
       const pageQuery = new URLSearchParams(location.search);
       const work = ['1', '2', '3'].includes(pageQuery.get('work')) ? pageQuery.get('work') : '1';
       const WORKSPACE_DB_KEY = `workspace-${work}`;
@@ -240,6 +243,10 @@
       };
       const SAVED_FIELDS = ['edition','series','stage','stagePrefix','leftPlayer','leftName','leftRoman','rightPlayer','rightName','rightRoman','sponsor','supplement','bgMode','bgX','bgY','bgScale','bgShade','mainColor','subColor'];
       const savedFiles = { left: null, right: null, bg: null };
+      const photoEpoch = { left: 0, right: 0, bg: 0 };
+      const invalidatePhotos = () => { for (const side of Object.keys(photoEpoch)) photoEpoch[side]++; };
+      let workspaceWrite = Promise.resolve();
+      let storageWarning = false;
       const SETTINGS_HISTORY_KEY = 'jbs-thumbnail-settings-history';
       function openSavedDb() {
         return new Promise((resolve, reject) => {
@@ -255,10 +262,11 @@
         return new Promise((resolve, reject) => {
           const tx = db.transaction('snapshots', mode === 'save' ? 'readwrite' : 'readonly');
           const request = mode === 'save' ? tx.objectStore('snapshots').put(value, key) : tx.objectStore('snapshots').get(key);
-          request.onsuccess = () => resolve(request.result);
+          let result;
+          request.onsuccess = () => { result = request.result; };
           request.onerror = () => reject(request.error);
-          tx.oncomplete = () => db.close();
-          tx.onerror = () => db.close();
+          tx.oncomplete = () => { db.close(); resolve(result); };
+          tx.onabort = tx.onerror = () => { db.close(); reject(tx.error || new Error('保存に失敗しました。')); };
         });
       }
       function currentWorkspaceSnapshot() {
@@ -268,37 +276,41 @@
           savedAt: new Date().toISOString()
         };
       }
-      async function saveWorkspace() {
+      function saveWorkspace() {
         const snapshot = currentWorkspaceSnapshot();
-        try {
-          await savedSnapshot('save', snapshot, WORKSPACE_DB_KEY);
-        } catch (error) {
-          console.warn('作業内容をIndexedDBへ保存できませんでした。', error);
-        }
+        // Write the latest text state synchronously, then serialize full IDB writes.
+        let textSaved = false;
         try {
           localStorage.setItem(WORKSPACE_FALLBACK_KEY, JSON.stringify({
-            fields: snapshot.fields,
-            files: { left: null, right: null, bg: null },
-            savedAt: snapshot.savedAt
+            fields: snapshot.fields, files: { left: null, right: null, bg: null }, savedAt: snapshot.savedAt
           }));
-        } catch (error) {
-          console.warn('作業内容をlocalStorageへ保存できませんでした。', error);
-        }
+          textSaved = true;
+        } catch (error) { console.warn('作業内容をlocalStorageへ保存できませんでした。', error); }
+        const write = async () => {
+          try {
+            await savedSnapshot('save', snapshot, WORKSPACE_DB_KEY);
+            storageWarning = false;
+            return true;
+          } catch (error) {
+            console.warn('作業内容をIndexedDBへ保存できませんでした。', error);
+            if (!storageWarning && (!textSaved || Object.values(snapshot.files).some(Boolean))) {
+              storageWarning = true;
+              alert(textSaved ? '写真を自動保存できませんでした。PNG出力で控えを保存してください。' : '作業内容を自動保存できません。JSON出力で控えを保存してください。');
+            }
+            return textSaved;
+          }
+        };
+        workspaceWrite = workspaceWrite.catch(() => {}).then(write);
+        return workspaceWrite;
       }
       async function loadWorkspace() {
-        try {
-          const snapshot = await savedSnapshot('load', undefined, WORKSPACE_DB_KEY);
-          const normalized = normalizeSnapshotWithCurrentMaster(snapshot);
-          if (normalized?.fields) return normalized;
-        } catch (error) {
-          console.warn('IndexedDBから作業内容を読み込めませんでした。', error);
-        }
-        try {
-          const snapshot = JSON.parse(localStorage.getItem(WORKSPACE_FALLBACK_KEY) || 'null');
-          return normalizeSnapshotWithCurrentMaster(snapshot);
-        } catch {
-          return null;
-        }
+        let full = null, text = null;
+        try { full = normalizeSnapshotWithCurrentMaster(await savedSnapshot('load', undefined, WORKSPACE_DB_KEY)); }
+        catch (error) { console.warn('IndexedDBから作業内容を読み込めませんでした。', error); }
+        try { text = normalizeSnapshotWithCurrentMaster(JSON.parse(localStorage.getItem(WORKSPACE_FALLBACK_KEY) || 'null')); }
+        catch {}
+        if (text?.fields && (!full?.fields || (Date.parse(text.savedAt) || 0) > (Date.parse(full.savedAt) || 0))) return text;
+        return full?.fields ? full : null;
       }
       let workspaceSaveTimer = 0;
       let workspaceAutoSaveEnabled = false;
@@ -390,12 +402,39 @@
           files: { left: null, right: null, bg: null },
           savedAt: snapshot.savedAt
         }));
-        localStorage.setItem(SETTINGS_HISTORY_KEY, JSON.stringify(fallbackHistory));
-        return indexedDbSaved || fallbackHistory.length > 0;
+        let fallbackSaved = false;
+        try {
+          localStorage.setItem(SETTINGS_HISTORY_KEY, JSON.stringify(fallbackHistory));
+          fallbackSaved = true;
+        } catch (error) { console.warn('設定の予備保存に失敗しました。', error); }
+        return indexedDbSaved || (fallbackSaved && !Object.values(savedFiles).some(Boolean));
+      }
+      function validateSettingsFields(input, strict = false) {
+        const fields = {};
+        if (!input || typeof input !== 'object' || Array.isArray(input)) {
+          if (strict) throw new Error('Invalid settings');
+          return fields;
+        }
+        const bounds = { bgX:[0,100], bgY:[0,100], bgScale:[50,200], bgShade:[0,70] };
+        for (const id of [...SAVED_FIELDS, 'seriesSubtitle']) {
+          if (!Object.hasOwn(input,id)) continue;
+          const v = input[id];
+          let valid = typeof v === 'string' && v.length <= 4096;
+          if (id === 'mainColor' || id === 'subColor') valid = typeof v === 'string' && /^#[0-9a-f]{6}$/i.test(v);
+          if (id === 'bgMode') valid = ['none','photoPlayers','photo'].includes(v);
+          if (Object.hasOwn(bounds,id)) {
+            const [min,max] = bounds[id], n = Number(v);
+            valid = typeof v === 'string' && v.trim() !== '' && Number.isFinite(n) && n >= min && n <= max;
+          }
+          if (valid) fields[id] = v;
+          else if (strict) throw new Error('Invalid field: ' + id);
+        }
+        if (strict && !Object.keys(fields).length) throw new Error('No valid settings');
+        return fields;
       }
       function normalizeSnapshotWithCurrentMaster(snapshot) {
-        if (!snapshot?.fields) return snapshot;
-        const fields = { ...snapshot.fields };
+        if (!snapshot?.fields) return null;
+        const fields = validateSettingsFields(snapshot.fields);
         const series = String(fields.series || '').trim();
         const stage = String(fields.stage || '').trim();
 
@@ -419,6 +458,7 @@
       function restoreSnapshotFields(snapshot) {
         snapshot = normalizeSnapshotWithCurrentMaster(snapshot);
         if (!snapshot?.fields) return null;
+        invalidatePhotos();
         $('stagePrefix').value = '';
         for (const id of SAVED_FIELDS) {
           if (typeof snapshot.fields[id] === 'string') $(id).value = snapshot.fields[id];
@@ -437,7 +477,7 @@
         refreshStageOptions();
         restoreAutoSupplement(restoredMaster);
         lastTournamentKey = tournamentKey(restoredMaster) || $('series').value.trim();
-        for (const side of ['left', 'right', 'bg']) savedFiles[side] = snapshot.files?.[side] || null;
+        for (const side of ['left', 'right', 'bg']) savedFiles[side] = snapshot.files?.[side] instanceof Blob ? snapshot.files[side] : null;
         $('bgPhotoStatus').textContent = savedFiles.bg?.name || '';
         render();
         return snapshot;
@@ -451,12 +491,14 @@
         };
         await Promise.all(['left', 'right', 'bg'].map(async side => {
           if (!canRestore(side)) return;
-          const file = snapshot.files?.[side] || null;
+          const request = ++photoEpoch[side];
+          const file = snapshot.files?.[side] instanceof Blob ? snapshot.files[side] : null;
           const player = side === 'bg' ? null : players.find(p => p.id === snapshot.fields[side + 'Player'])
             || players.find(p => p.name === $(side + 'Name').value.trim());
           const image = await load(file, player?.photo);
           // Startup photos must never overwrite newer photo or player choices.
           if (!canRestore(side)) return;
+          if (request !== photoEpoch[side]) return;
           savedFiles[side] = file;
           state[side + 'Image'] = image;
           if (side !== 'bg') {
@@ -1145,45 +1187,62 @@
       function loadImage(src) {
         return new Promise((resolve, reject) => {
           const img = new Image();
-          img.onload = () => resolve(img);
-          img.onerror = reject;
+          const finish = (error) => {
+            clearTimeout(timer);
+            img.onload = img.onerror = null;
+            if (error) reject(error); else resolve(img);
+          };
+          const timer = setTimeout(() => { finish(new Error('画像の読み込みがタイムアウトしました。')); img.src = ''; }, 10000);
+          img.onload = () => finish();
+          img.onerror = () => finish(new Error('画像を読み込めませんでした。'));
           img.src = src;
         });
       }
       async function applyPlayer(side, playerId, forcePhoto = true) {
+        const request = ++photoEpoch[side];
         const p = players.find(x => x.id === playerId);
         if (!p) {
-          $(`${side}Name`).value = '';
-          $(`${side}Roman`).value = '';
-          state[`${side}Image`] = null;
-          state[`${side}Override`] = false;
+          $(side + 'Name').value = '';
+          $(side + 'Roman').value = '';
+          state[side + 'Image'] = null;
+          state[side + 'Override'] = false;
           savedFiles[side] = null;
           syncPlayerPhotoPreview(side, '');
           render();
           return;
         }
-        $(`${side}Name`).value = p.name || '';
-        $(`${side}Roman`).value = p.roman || '';
+        $(side + 'Name').value = p.name || '';
+        $(side + 'Roman').value = p.roman || '';
         if (forcePhoto) {
+          state[side + 'Image'] = null;
+          state[side + 'Override'] = false;
+          savedFiles[side] = null;
           syncPlayerPhotoPreview(side, p.photo);
+          render();
           try {
             const img = await loadImage(p.photo);
-            state[`${side}Image`] = img;
-            state[`${side}Override`] = false;
-            savedFiles[side] = null;
-          } catch (e) {
-            state[`${side}Image`] = null;
+            if (request !== photoEpoch[side]) return;
+            state[side + 'Image'] = img;
+          } catch {
+            if (request !== photoEpoch[side]) return;
             syncPlayerPhotoPreview(side, '');
           }
         }
         render();
       }
-      function loadFileImage(file, cb) {
+      async function loadFileImage(side, file, cb) {
         if (!file) return;
+        const request = ++photoEpoch[side];
         const url = URL.createObjectURL(file);
-        const img = new Image();
-        img.onload = () => { cb(img); URL.revokeObjectURL(url); render(); };
-        img.src = url;
+        try {
+          const img = await loadImage(url);
+          if (request !== photoEpoch[side]) return;
+          cb(img);
+          render();
+          scheduleWorkspaceSave();
+        } catch (error) {
+          if (request === photoEpoch[side]) alert('画像を読み込めませんでした。別の画像をお試しください。');
+        } finally { URL.revokeObjectURL(url); }
       }
       async function loadMemberPlayers() {
         try {
@@ -1225,15 +1284,12 @@
       async function importJsonFile(file) {
         if (!file) return;
         try {
+          if (file.size > 1000000) throw new Error('Settings file too large');
           const parsed = JSON.parse(await file.text());
           const imported = parsed?.fields && typeof parsed.fields === 'object' ? parsed.fields : parsed;
           if (!imported || typeof imported !== 'object' || Array.isArray(imported)) throw new Error();
 
-          const fields = {};
-          for (const id of SAVED_FIELDS) {
-            if (Object.hasOwn(imported, id) && typeof imported[id] === 'string') fields[id] = imported[id];
-          }
-          if (!Object.keys(fields).length) throw new Error();
+          const fields = validateSettingsFields(imported, true);
 
           await applySnapshot({
             fields,
@@ -1335,9 +1391,10 @@
           $(`${side}PhotoButton`).addEventListener('click', () => $(`${side}PhotoOverride`).click());
           $(`${side}PhotoOverride`).addEventListener('change', (event) => {
             const file = event.target.files[0];
+            event.target.value = '';
             if (!file) return;
-            syncPlayerPhotoPreviewFromFile(side, file);
-            loadFileImage(file, img => {
+            loadFileImage(side, file, img => {
+              syncPlayerPhotoPreviewFromFile(side, file);
               state[`${side}Image`] = img;
               state[`${side}Override`] = true;
               savedFiles[side] = file;
@@ -1345,8 +1402,9 @@
           });
         }
         $('bgPhoto').addEventListener('change', (e) => {
-          $('bgPhotoStatus').textContent = e.target.files[0]?.name || '';
-          loadFileImage(e.target.files[0], img => { state.bgImage = img; savedFiles.bg = e.target.files[0]; });
+          const file = e.target.files[0];
+          e.target.value = '';
+          loadFileImage('bg', file, img => { state.bgImage = img; savedFiles.bg = file; $('bgPhotoStatus').textContent = file.name; });
         });
         $('loadSettings').addEventListener('click', async () => {
           await renderSavedSettings();
@@ -1397,6 +1455,7 @@
       async function importOverlayPlayer(side, name, roman, rawPhoto) {
         const normalized = value => String(value || '').replace(/[\s\u3000]+/g, '');
         const player = players.find(item => normalized(item.name) === normalized(name));
+        const request = ++photoEpoch[side];
         const playerSelect = $(side + 'Player');
         playerSelect.value = '';
         $(side + 'Name').value = name || '';
@@ -1404,12 +1463,14 @@
         savedFiles[side] = null;
         state[side + 'Override'] = false;
         const photo = typeof rawPhoto === 'string'
-          && /^(data:image\/|https:\/\/jbsbackgammon\.github\.io\/member\/)/i.test(rawPhoto)
+          && rawPhoto.length <= 1500000
+          && /^(?:data:image\/(?:png|jpeg|webp);base64,[A-Za-z0-9+/=]+$|https:\/\/jbsbackgammon\.github\.io\/member\/images\/[^?#]+(?:\?v=\d+)?$)/i.test(rawPhoto)
           ? rawPhoto : (player?.photo || '');
         if (photo.startsWith('data:image/')) {
           try {
             const response = await fetch(photo);
             const blob = await response.blob();
+            if (request !== photoEpoch[side]) return;
             const extension = blob.type === 'image/png' ? 'png' : blob.type === 'image/jpeg' ? 'jpg' : 'webp';
             savedFiles[side] = new File([blob], 'overlay_' + side + '.' + extension, { type: blob.type || 'image/webp' });
             state[side + 'Override'] = true;
@@ -1417,9 +1478,15 @@
             console.warn('選手写真の保存用変換に失敗しました。', error);
           }
         }
+        if (request !== photoEpoch[side]) return;
         syncPlayerPhotoPreview(side, photo);
-        try { state[side + 'Image'] = photo ? await loadImage(photo) : null; }
+        try {
+          const image = photo ? await loadImage(photo) : null;
+          if (request !== photoEpoch[side]) return;
+          state[side + 'Image'] = image;
+        }
         catch (error) {
+          if (request !== photoEpoch[side]) return;
           state[side + 'Image'] = null;
           syncPlayerPhotoPreview(side, '');
           console.warn('配信盤面の選手写真を読み込めませんでした。', error);
@@ -1451,6 +1518,7 @@
           importOverlayPlayer('right', text(fields.rightName), text(fields.rightRoman), fields.rightPhoto)
         ]);
         render();
+        scheduleWorkspaceSave();
       }
 
       function enableOverlayTransfer() {
