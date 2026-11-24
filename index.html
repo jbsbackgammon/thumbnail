@@ -156,6 +156,7 @@
       <div class="jbsui-saved-settings" id="savedSettings"></div>
     </dialog>
   <script src="https://jbsbackgammon.github.io/common/brand.js?v=9"></script>
+  <script src="https://jbsbackgammon.github.io/common/members.js"></script>
   <script src="https://jbsbackgammon.github.io/common/naming.js?v=1"></script>
   <script src="https://jbsbackgammon.github.io/common/ui.js?v=2"></script>
   <script>
@@ -171,7 +172,7 @@
         document.documentElement.removeAttribute('data-jbsui-keyboard-focus');
       });
 
-      const APP_BUILD = '154';
+      const APP_BUILD = '155';
       const pageQuery = new URLSearchParams(location.search);
       const work = ['1', '2', '3'].includes(pageQuery.get('work')) ? pageQuery.get('work') : '1';
       const WORKSPACE_DB_KEY = `workspace-${work}`;
@@ -212,9 +213,6 @@
       let lastAutoSupplement = '';
 
       let players = [];
-      const MEMBER_BASE_URL = 'https://jbsbackgammon.github.io/member/';
-      const MEMBER_DATA_URL = `${MEMBER_BASE_URL}data/members.json`;
-      let memberCacheKey = Date.now();
       const PLAYER_DUMMY_URL = 'https://jbsbackgammon.github.io/overlay/assets/dummy.png';
       const $ = (id) => document.getElementById(id);
       const canvas = $('canvas');
@@ -249,6 +247,7 @@
           request.onupgradeneeded = () => request.result.createObjectStore('snapshots');
           request.onsuccess = () => resolve(request.result);
           request.onerror = () => reject(request.error);
+          request.onblocked = () => reject(new Error('保存データベースを開けませんでした。'));
         });
       }
       async function savedSnapshot(mode, value, key = 'last') {
@@ -417,9 +416,9 @@
         }
         return { ...snapshot, fields };
       }
-      async function applySnapshot(snapshot, { closeDialog = true } = {}) {
+      function restoreSnapshotFields(snapshot) {
         snapshot = normalizeSnapshotWithCurrentMaster(snapshot);
-        if (!snapshot?.fields) return;
+        if (!snapshot?.fields) return null;
         $('stagePrefix').value = '';
         for (const id of SAVED_FIELDS) {
           if (typeof snapshot.fields[id] === 'string') $(id).value = snapshot.fields[id];
@@ -438,29 +437,43 @@
         refreshStageOptions();
         restoreAutoSupplement(restoredMaster);
         lastTournamentKey = tournamentKey(restoredMaster) || $('series').value.trim();
-        for (const side of ['left', 'right']) {
-          const player = players.find(p => p.id === $(`${side}Player`).value)
-            || players.find(p => p.name === $(`${side}Name`).value.trim());
-          savedFiles[side] = snapshot.files?.[side] || null;
-          state[`${side}Override`] = !!savedFiles[side];
-          const src = savedFiles[side] ? URL.createObjectURL(savedFiles[side]) : player?.photo;
-          try { state[`${side}Image`] = src ? await loadImage(src) : null; }
-          catch { state[`${side}Image`] = null; }
-          if (savedFiles[side]) {
-            syncPlayerPhotoPreviewFromFile(side, savedFiles[side]);
-            URL.revokeObjectURL(src);
-          } else {
-            syncPlayerPhotoPreview(side, player?.photo);
-          }
-          $(`${side}Player`).value = '';
-        }
-        savedFiles.bg = snapshot.files?.bg || null;
-        const bgSrc = savedFiles.bg && URL.createObjectURL(savedFiles.bg);
-        try { state.bgImage = bgSrc ? await loadImage(bgSrc) : null; }
-        catch { state.bgImage = null; }
-        if (bgSrc) URL.revokeObjectURL(bgSrc);
+        for (const side of ['left', 'right', 'bg']) savedFiles[side] = snapshot.files?.[side] || null;
         $('bgPhotoStatus').textContent = savedFiles.bg?.name || '';
         render();
+        return snapshot;
+      }
+      async function restoreSnapshotPhotos(snapshot, canRestore = () => true) {
+        const load = async (file, photo) => {
+          const url = file ? URL.createObjectURL(file) : photo;
+          try { return url ? await loadImage(url) : null; }
+          catch { return null; }
+          finally { if (file) URL.revokeObjectURL(url); }
+        };
+        await Promise.all(['left', 'right', 'bg'].map(async side => {
+          if (!canRestore(side)) return;
+          const file = snapshot.files?.[side] || null;
+          const player = side === 'bg' ? null : players.find(p => p.id === snapshot.fields[side + 'Player'])
+            || players.find(p => p.name === $(side + 'Name').value.trim());
+          const image = await load(file, player?.photo);
+          // Startup photos must never overwrite newer photo or player choices.
+          if (!canRestore(side)) return;
+          savedFiles[side] = file;
+          state[side + 'Image'] = image;
+          if (side !== 'bg') {
+            state[side + 'Override'] = Boolean(file);
+            if (file) syncPlayerPhotoPreviewFromFile(side, file);
+            else syncPlayerPhotoPreview(side, player?.photo);
+            $(side + 'Player').value = '';
+          } else {
+            $('bgPhotoStatus').textContent = file?.name || '';
+          }
+          render();
+        }));
+      }
+      async function applySnapshot(snapshot, { closeDialog = true } = {}) {
+        const restored = restoreSnapshotFields(snapshot);
+        if (!restored) return;
+        await restoreSnapshotPhotos(restored);
         if (closeDialog) $('settingsDialog')?.close();
       }
       async function restoreHistory(index) {
@@ -489,13 +502,10 @@
       }
       function fallbackContrastText(hex) {
         const {r, g, b} = hexToRgb(hex);
-        return luminance(r, g, b) > 0.179 ? '#000000' : '#ffffff';
+        return luminance(r, g, b) > 0.26 ? '#000000' : '#FFFFFF';
       }
       function contrastText(hex) {
-        if (commonBrandReady && window.JBSBrand?.getTextColor) {
-          return window.JBSBrand.getTextColor(hex, fallbackContrastText(hex)) || fallbackContrastText(hex);
-        }
-        return fallbackContrastText(hex);
+        return window.JBSBrand?.getTextColor(hex) || fallbackContrastText(hex);
       }
       function mix(hex, amount = 0.2) {
         const {r,g,b} = hexToRgb(hex);
@@ -506,7 +516,7 @@
         return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
       }
       function makeSubColor(mainColor) {
-        if (commonBrandReady && window.JBSBrand?.makeSubColor) {
+        if (window.JBSBrand?.makeSubColor) {
           return window.JBSBrand.makeSubColor(mainColor) || mix(mainColor, 0.32);
         }
         return mix(mainColor, 0.32);
@@ -1175,182 +1185,17 @@
         img.onload = () => { cb(img); URL.revokeObjectURL(url); render(); };
         img.src = url;
       }
-      function isForeignMember(member) {
-        const name = member.name;
-        const hasLatin = /[A-Za-z]/.test(name);
-        const hasJapanese = /[\u3040-\u30ff\u3400-\u9fff]/.test(name);
-        return hasLatin && !hasJapanese;
-      }
-      function katakanaToHiragana(value) {
-        return String(value || '').replace(/[\u30a1-\u30f6]/g, ch =>
-          String.fromCharCode(ch.charCodeAt(0) - 0x60)
-        );
-      }
-      const ROMAJI_TO_HIRAGANA = new Map(Object.entries({
-        kya:'きゃ', kyu:'きゅ', kyo:'きょ',
-        gya:'ぎゃ', gyu:'ぎゅ', gyo:'ぎょ',
-        sha:'しゃ', shu:'しゅ', sho:'しょ',
-        sya:'しゃ', syu:'しゅ', syo:'しょ',
-        ja:'じゃ', ju:'じゅ', jo:'じょ',
-        jya:'じゃ', jyu:'じゅ', jyo:'じょ',
-        cha:'ちゃ', chu:'ちゅ', cho:'ちょ',
-        cya:'ちゃ', cyu:'ちゅ', cyo:'ちょ',
-        tya:'ちゃ', tyu:'ちゅ', tyo:'ちょ',
-        nya:'にゃ', nyu:'にゅ', nyo:'にょ',
-        hya:'ひゃ', hyu:'ひゅ', hyo:'ひょ',
-        bya:'びゃ', byu:'びゅ', byo:'びょ',
-        pya:'ぴゃ', pyu:'ぴゅ', pyo:'ぴょ',
-        mya:'みゃ', myu:'みゅ', myo:'みょ',
-        rya:'りゃ', ryu:'りゅ', ryo:'りょ',
-        fa:'ふぁ', fi:'ふぃ', fe:'ふぇ', fo:'ふぉ',
-        va:'ゔぁ', vi:'ゔぃ', vu:'ゔ', ve:'ゔぇ', vo:'ゔぉ',
-        shi:'し', chi:'ち', tsu:'つ',
-        si:'し', ti:'ち', tu:'つ', hu:'ふ',
-        ji:'じ', zi:'じ',
-        a:'あ', i:'い', u:'う', e:'え', o:'お',
-        ka:'か', ki:'き', ku:'く', ke:'け', ko:'こ',
-        ga:'が', gi:'ぎ', gu:'ぐ', ge:'げ', go:'ご',
-        sa:'さ', su:'す', se:'せ', so:'そ',
-        za:'ざ', zu:'ず', ze:'ぜ', zo:'ぞ',
-        ta:'た', te:'て', to:'と',
-        da:'だ', di:'ぢ', du:'づ', de:'で', do:'ど',
-        na:'な', ni:'に', nu:'ぬ', ne:'ね', no:'の',
-        ha:'は', hi:'ひ', fu:'ふ', he:'へ', ho:'ほ',
-        ba:'ば', bi:'び', bu:'ぶ', be:'べ', bo:'ぼ',
-        pa:'ぱ', pi:'ぴ', pu:'ぷ', pe:'ぺ', po:'ぽ',
-        ma:'ま', mi:'み', mu:'む', me:'め', mo:'も',
-        ya:'や', yu:'ゆ', yo:'よ',
-        ra:'ら', ri:'り', ru:'る', re:'れ', ro:'ろ',
-        wa:'わ', wi:'ゐ', we:'ゑ', wo:'を',
-        n:'ん'
-      }));
-      function normalizeRomaji(value) {
-        return String(value || '')
-          .normalize('NFKD')
-          .replace(/[\u0300-\u036f]/g, '')
-          .replace(/[’']/g, "'")
-          .replace(/[^A-Za-z'-]/g, '')
-          .toLowerCase();
-      }
-      function romajiToHiragana(value) {
-        let source = normalizeRomaji(value);
-        if (!source) return '';
-        source = source
-          .replace(/ō/g, 'o')
-          .replace(/ū/g, 'u')
-          .replace(/ā/g, 'a')
-          .replace(/ī/g, 'i')
-          .replace(/ē/g, 'e');
-        let result = '';
-        let i = 0;
-        while (i < source.length) {
-          if (source[i] === '-' || source[i] === "'") { i += 1; continue; }
-          if (i > 0 && source[i] === 'h' && source[i - 1] === 'o') { i += 1; continue; }
-          if (
-            i + 1 < source.length &&
-            source[i] === source[i + 1] &&
-            /[bcdfghjklmpqrstvwxyz]/.test(source[i]) &&
-            source[i] !== 'n'
-          ) {
-            result += 'っ'; i += 1; continue;
-          }
-          if (source[i] === 'm' && i + 1 < source.length && /[bmp]/.test(source[i + 1])) {
-            result += 'ん'; i += 1; continue;
-          }
-          if (
-            source[i] === 'n' &&
-            (i === source.length - 1 || source[i + 1] === "'" || !/[aiueoy]/.test(source[i + 1]))
-          ) {
-            result += 'ん'; i += 1;
-            if (source[i] === "'") i += 1;
-            continue;
-          }
-          let matched = false;
-          for (const length of [3, 2, 1]) {
-            const part = source.slice(i, i + length);
-            const kana = ROMAJI_TO_HIRAGANA.get(part);
-            if (kana) {
-              result += kana;
-              i += length;
-              matched = true;
-              break;
-            }
-          }
-          if (!matched) return '';
-        }
-        return result;
-      }
-      function japaneseSurnameText(member) {
-        return String(member.name || '').trim().split(/\s+/)[0] || '';
-      }
-      function inferJapaneseSurnameRomaji(member) {
-        const tokens = String(member.roman || '')
-          .trim()
-          .split(/\s+/)
-          .map(token => token.replace(/^[^A-Za-z]+|[^A-Za-z'-]+$/g, ''))
-          .filter(Boolean);
-        if (!tokens.length) return '';
-        const uppercaseSurname = tokens.find(token =>
-          /[A-Z]/.test(token) && token === token.toUpperCase() && /^[A-Z'-]+$/.test(token)
-        );
-        if (uppercaseSurname) return uppercaseSurname;
-        const japaneseLikeTokens = tokens.filter(token => romajiToHiragana(token));
-        if (japaneseLikeTokens.length) return japaneseLikeTokens[japaneseLikeTokens.length - 1];
-        return tokens[0];
-      }
-      function japaneseSurnameSortKey(member) {
-        const surnameJa = japaneseSurnameText(member);
-        if (surnameJa && /^[\u3040-\u30ffー]+$/.test(surnameJa)) {
-          return katakanaToHiragana(surnameJa);
-        }
-        const surnameRomaji = inferJapaneseSurnameRomaji(member);
-        return romajiToHiragana(surnameRomaji) || surnameRomaji.toLocaleLowerCase('en');
-      }
-      function foreignFirstNameSortKey(member) {
-        return String(member.name || '').trim().split(/\s+/)[0].toLocaleLowerCase('en');
-      }
-      function memberPhotoUrl(path) {
-        if (!path) return '';
-        const url = new URL(path, MEMBER_BASE_URL);
-        url.searchParams.set('v', String(memberCacheKey));
-        return url.href;
-      }
       async function loadMemberPlayers() {
         try {
-          memberCacheKey = Date.now();
-          const url = new URL(MEMBER_DATA_URL);
-          url.searchParams.set('v', String(memberCacheKey));
-          const response = await fetch(url.href, { cache: 'no-store' });
-          if (!response.ok) throw new Error(`HTTP ${response.status}`);
-          const data = await response.json();
-          const source = Array.isArray(data) ? data : data?.members;
-          if (!Array.isArray(source)) throw new Error('会員一覧の形式が正しくありません。');
-
-          const jaCollator = new Intl.Collator('ja', { sensitivity: 'base', numeric: true });
-          const enCollator = new Intl.Collator('en', { sensitivity: 'base', numeric: true });
-          players = source
-            .map((raw, index) => ({
-              id: String(raw?.id || raw?.filename || `member-${index + 1}`),
-              name: String(raw?.name ?? raw?.nameJa ?? '').trim(),
-              roman: String(raw?.nameEn ?? '').trim(),
-              photo: memberPhotoUrl(String(raw?.photo ?? '').trim())
-            }))
-            .filter(player => player.name && player.roman && player.photo)
-            .sort((a, b) => {
-              const aForeign = isForeignMember(a);
-              const bForeign = isForeignMember(b);
-              if (aForeign !== bForeign) return aForeign ? 1 : -1;
-              if (!aForeign) {
-                const bySurname = jaCollator.compare(japaneseSurnameSortKey(a), japaneseSurnameSortKey(b));
-                if (bySurname !== 0) return bySurname;
-                const byEnglish = enCollator.compare(a.roman, b.roman);
-                if (byEnglish !== 0) return byEnglish;
-                return jaCollator.compare(a.name, b.name);
-              }
-              const byFirstName = enCollator.compare(foreignFirstNameSortKey(a), foreignFirstNameSortKey(b));
-              if (byFirstName !== 0) return byFirstName;
-              return enCollator.compare(a.name, b.name);
-            });
+          if (!window.JBSMembers) throw new Error('Shared member library unavailable');
+          const cacheKey = Date.now();
+          const members = await JBSMembers.load({ cacheKey });
+          // Thumbnail requires a name, English name and an actual photo.
+          players = members.filter(member => member.nameEn && member.photo)
+            .map(member => ({
+              id: member.id, name: member.nameJa, roman: member.nameEn,
+              photo: JBSMembers.photoUrl(member, { cacheKey })
+            }));
         } catch (error) {
           players = [];
           console.error('[JBS Thumbnail] member の選手一覧を取得できませんでした。', error);
@@ -1622,59 +1467,88 @@
         window.opener.postMessage({ type: 'jbs-thumbnail-ready', token }, location.origin);
       }
 
+      // Only mark actual editor interactions, not programmatic field assignments.
+      function createStartupGuard(panel) {
+        const touched = new Set();
+        const mark = event => {
+          const id = event.target?.id;
+          if (id) touched.add(id);
+        };
+        const markRestore = event => {
+          if (event.target?.closest('#loadSettings, #importJson')) touched.add('all');
+        };
+        panel.addEventListener('input', mark, true);
+        panel.addEventListener('change', mark, true);
+        panel.addEventListener('click', markRestore, true);
+        return {
+          changed: (...ids) => touched.has('all') || ids.some(id => touched.has(id)),
+          stop() {
+            panel.removeEventListener('input', mark, true);
+            panel.removeEventListener('change', mark, true);
+            panel.removeEventListener('click', markRestore, true);
+          }
+        };
+      }
+      function refreshStartupBrand(restored, guard) {
+        const master = findTournamentForCurrentFields();
+        const changedSeries = guard.changed('series','seriesPreset');
+        // Preserve restored or manually edited fields. Fill automatic values
+        // from the current (not the initial) event, never reset the round.
+        if (master && !guard.changed('edition') && (!restored || changedSeries || !$('edition').value.trim())) {
+          if (master.edition) $('edition').value = master.edition;
+        }
+        if (master && (!restored || changedSeries) && !guard.changed('mainColor','mainColorCode')) {
+          if (master.color) $('mainColor').value = master.color;
+          if (!guard.changed('subColor','subColorCode')) $('subColor').value = master.subColor || makeSubColor(master.color);
+        }
+        if (!guard.changed('supplement')) {
+          if (restored && !changedSeries && !guard.changed('stage','stagePreset','stagePrefix')) restoreAutoSupplement(master);
+          else syncSupplementFromSelections();
+        }
+        populate();
+        render();
+      }
       async function init() {
-        // First paint must never wait for network or web-font loading.
-        // Use the built-in tournament master to show 日本選手権・決勝 immediately.
+        // Paint immediately, then restore local fields before accepting edits.
+        // Network and font loading run independently and never reset the form.
+        const panel = document.querySelector('aside');
+        panel.inert = true;
         populate();
         bind();
-        $('series').value = '日本選手権';
-        $('stage').value = '決勝';
-        const fallbackInitialTournament = findTournament('日本選手権');
-        if (fallbackInitialTournament) {
-          applyTournamentMaster(fallbackInitialTournament, { force: true });
-        } else {
-          render();
-        }
-        render();
+        const initial = findTournament('日本選手権');
+        if (initial) applyTournamentMaster(initial, { force: true });
+        else render();
 
-        // Load external data and the actual canvas fonts in parallel, then
-        // repaint with the current official edition, colors and Noto Sans JP.
+        const brandPromise = loadCommonBrand();
         const memberPromise = loadMemberPlayers();
-        await Promise.all([loadCommonBrand(), ensureCanvasFonts()]);
-
-        $('series').value = '日本選手権';
-        $('stage').value = '決勝';
-        const initialTournament = findTournament('日本選手権');
-        if (initialTournament) {
-          applyTournamentMaster(initialTournament, { force: true });
-          syncSupplementFromSelections({ force: true });
-        } else {
-          $('edition').value = '';
-          syncSupplementFromSelections({ force: true });
+        ensureCanvasFonts().then(render).catch(error => console.warn('フォント読み込みに失敗しました。', error));
+        let restored = null;
+        try {
+          const workspace = await loadWorkspace();
+          if (workspace?.fields) restored = restoreSnapshotFields(workspace);
+        } catch (error) {
+          console.warn('作業内容の復元に失敗しました。', error);
+        } finally {
+          panel.inert = false;
         }
-        populate();
-        render();
 
-        // Populate player choices afterward without delaying either preview paint.
-        await memberPromise;
-        populate();
-        const workspaceSnapshot = await loadWorkspace();
-        if (workspaceSnapshot?.fields) {
-          await applySnapshot(workspaceSnapshot, { closeDialog: false });
-        } else {
-          // No valid workspace: keep the official 日本選手権・決勝 defaults.
-          $('series').value = '日本選手権';
-          $('stage').value = '決勝';
-          const defaultTournament = findTournament('日本選手権');
-          if (defaultTournament) applyTournamentMaster(defaultTournament, { force: true });
-          syncSupplementFromSelections({ force: true });
+        const guard = createStartupGuard(panel);
+        workspaceAutoSaveEnabled = true;
+        const brandTask = brandPromise.then(() => refreshStartupBrand(restored, guard));
+        const memberTask = memberPromise.then(async () => {
+          populate();
+          if (restored) {
+            await restoreSnapshotPhotos(restored, side => side === 'bg'
+              ? !guard.changed('bgPhoto')
+              : !guard.changed(side + 'Name', side + 'Roman', side + 'Player', side + 'PhotoOverride'));
+          }
+        });
+        try { await Promise.allSettled([brandTask, memberTask]); }
+        finally {
+          guard.stop();
+          enableOverlayTransfer();
           render();
         }
-        workspaceAutoSaveEnabled = true;
-        enableOverlayTransfer();
-
-        // Repaint once if the browser reports a later font-set transition
-        // (for example after a slow cache/network response).
         document.fonts?.ready?.then(() => render()).catch?.(() => {});
       }
       init();

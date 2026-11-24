@@ -50,6 +50,9 @@ jobs:
       - name: Validate tournament-specific match options
         run: node scripts/check-match-rounds.cjs
 
+      - name: Validate startup field preservation
+        run: node scripts/check-startup.cjs
+
       - name: Configure Pages
         uses: actions/configure-pages@v6
 
