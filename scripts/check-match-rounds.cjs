@@ -2,23 +2,23 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const html = fs.readFileSync('index.html','utf8');
-const start = html.indexOf('      function getStageRounds()');
+const start = html.indexOf('      function splitStageRound(');
 const end = html.indexOf('      function applyTournamentMaster(', start);
 assert.ok(start >= 0 && end > start, 'Round selector functions missing');
 const fields = {
   series: { value: '盤聖戦' }, stage: { value: '１回戦' },
-  supplement: { value: '' },
+  supplement: { value: '' }, stagePrefix: { value: '' },
   stagePreset: { options: [], replaceChildren(...options) { this.options = options; }, add(option) { this.options.push(option); } }
 };
 const master = { id: 'bansei', name: '盤聖戦', nameEn: 'BANSEI' };
 const fixtures = {
   bansei: [{ name: '決勝', nameEn: 'FINAL' }, { name: '１回戦', nameEn: 'ROUND OF 64' }],
   saiou: [{ name: '決勝', nameEn: 'FINAL' }, { name: '１回戦', nameEn: 'ROUND OF 32' }],
-  japan: [{ name: '決勝', nameEn: 'FINAL' }, { name: '１回戦', nameEn: 'ROUND OF 16' }, { name: 'リーグ８回戦', nameEn: 'ROUND 8' }]
+  japan: [{ name: '決勝', nameEn: 'FINAL' }, { name: '１回戦', nameEn: 'ROUND OF 16' }, { name: 'リーグステージ８回戦', nameEn: 'ROUND 8' }]
 };
 const api = Function('$', 'window', 'Option', 'findTournamentForCurrentFields',
   "let commonBrandReady = true; let lastAutoSupplement = ''; const LEGACY_STAGE_ENGLISH = {'決勝':'FINAL','準決勝':'SEMIFINAL','準々決勝':'QUARTERFINAL','１回戦':'ROUND 1'};\n"
-  + html.slice(start, end) + '\nreturn { refreshStageOptions, stageEnglishFor, syncSupplementFromSelections, restoreAutoSupplement };')(
+  + html.slice(start, end) + '\nreturn { refreshStageOptions, stageEnglishFor, syncSupplementFromSelections, restoreAutoSupplement, applyStagePreset, normalizeStageFields };')(
   id => fields[id], { JBSBrand: { getMatchRounds: id => fixtures[id] || [] } },
   function Option(text, value) { this.text = text; this.value = value; }, () => master);
 api.refreshStageOptions();
@@ -31,14 +31,30 @@ api.syncSupplementFromSelections();
 assert.equal(fields.supplement.value, 'JBS SAIO ROUND OF 32');
 master.id = 'japan'; master.nameEn = 'JAPAN OPEN';
 api.refreshStageOptions();
-assert.deepEqual(fields.stagePreset.options.map(o => o.value), ['', '決勝', '１回戦', 'リーグ８回戦']);
+assert.deepEqual(fields.stagePreset.options.map(o => o.value), ['', '決勝', '１回戦', 'リーグステージ８回戦']);
 assert.equal(api.stageEnglishFor('1回戦'), 'ROUND OF 16');
 fields.supplement.value = 'JBS JAPAN OPEN ROUND 1';
 api.restoreAutoSupplement(master);
 assert.equal(fields.supplement.value, 'JBS JAPAN OPEN ROUND OF 16');
-fields.stage.value = 'リーグ８回戦';
+api.applyStagePreset('リーグステージ８回戦');
+assert.equal(fields.stage.value, '８回戦');
+assert.equal(fields.stagePrefix.value, 'リーグステージ');
 api.syncSupplementFromSelections();
 assert.equal(fields.supplement.value, 'JBS JAPAN OPEN ROUND 8');
+api.applyStagePreset('リーグ８回戦');
+assert.equal(fields.stage.value, '８回戦');
+assert.equal(fields.stagePrefix.value, 'リーグステージ');
+fields.stage.value = 'リーグステージ8回戦';
+fields.stagePrefix.value = '';
+api.normalizeStageFields();
+assert.equal(fields.stage.value, '８回戦');
+assert.equal(fields.stagePrefix.value, 'リーグステージ');
+api.applyStagePreset('１回戦');
+assert.equal(fields.stagePrefix.value, '');
+api.syncSupplementFromSelections();
+assert.equal(fields.supplement.value, 'JBS JAPAN OPEN ROUND OF 16');
+api.applyStagePreset('リーグステージ８回戦');
+api.syncSupplementFromSelections();
 fields.supplement.value = '手入力のフッター';
 api.restoreAutoSupplement(master);
 assert.equal(fields.supplement.value, '手入力のフッター');

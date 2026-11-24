@@ -155,7 +155,7 @@
       </div>
       <div class="jbsui-saved-settings" id="savedSettings"></div>
     </dialog>
-  <script src="https://jbsbackgammon.github.io/common/brand.js?v=8"></script>
+  <script src="https://jbsbackgammon.github.io/common/brand.js?v=9"></script>
   <script src="https://jbsbackgammon.github.io/common/naming.js?v=1"></script>
   <script src="https://jbsbackgammon.github.io/common/ui.js?v=2"></script>
   <script>
@@ -171,7 +171,7 @@
         document.documentElement.removeAttribute('data-jbsui-keyboard-focus');
       });
 
-      const APP_BUILD = '153';
+      const APP_BUILD = '154';
       const pageQuery = new URLSearchParams(location.search);
       const work = ['1', '2', '3'].includes(pageQuery.get('work')) ? pageQuery.get('work') : '1';
       const WORKSPACE_DB_KEY = `workspace-${work}`;
@@ -420,6 +420,7 @@
       async function applySnapshot(snapshot, { closeDialog = true } = {}) {
         snapshot = normalizeSnapshotWithCurrentMaster(snapshot);
         if (!snapshot?.fields) return;
+        $('stagePrefix').value = '';
         for (const id of SAVED_FIELDS) {
           if (typeof snapshot.fields[id] === 'string') $(id).value = snapshot.fields[id];
         }
@@ -433,6 +434,7 @@
           if (!$('subColor').value) $('subColor').value = restoredMaster.subColor || makeSubColor(restoredMaster.color || $('mainColor').value);
           if (!$('stage').value.trim() && restoredMaster.name === '日本選手権') $('stage').value = '決勝';
         }
+        normalizeStageFields();
         refreshStageOptions();
         restoreAutoSupplement(restoredMaster);
         lastTournamentKey = tournamentKey(restoredMaster) || $('series').value.trim();
@@ -551,10 +553,39 @@
         return findTournament(series)
           || findTournament(`${series}オープン`);
       }
+      function splitStageRound(value) {
+        if (window.JBSBrand?.splitMatchRound) return window.JBSBrand.splitMatchRound(value);
+        // Compatibility when common is not available or still cached.
+        const text = String(value || '').trim();
+        const match = text.match(/^リーグ(?:ステージ)?\s*([1-8１-８]回戦)$/);
+        if (!match) return { prefix: '', name: text, fullName: text };
+        const name = match[1].replace(/[1-8]/g, digit => String.fromCharCode(0xff10 + Number(digit)));
+        return { prefix: 'リーグステージ', name, fullName: 'リーグステージ' + name };
+      }
+      function isLeaguePrefix(value) {
+        return /^(?:リーグ|リーグステージ)$/.test(String(value || '').trim());
+      }
+      function applyStagePreset(value) {
+        const round = splitStageRound(value);
+        $('stage').value = round.name;
+        if (round.prefix) $('stagePrefix').value = round.prefix;
+        else if (isLeaguePrefix($('stagePrefix').value)) $('stagePrefix').value = '';
+      }
+      function normalizeStageFields() {
+        const round = splitStageRound($('stage').value);
+        const prefix = $('stagePrefix').value.trim();
+        if (round.prefix && (!prefix || isLeaguePrefix(prefix))) {
+          $('stage').value = round.name;
+          $('stagePrefix').value = round.prefix;
+        } else if (isLeaguePrefix(prefix)) {
+          $('stagePrefix').value = 'リーグステージ';
+        }
+      }
       function getStageRounds() {
         const master = findTournamentForCurrentFields();
         if (commonBrandReady && window.JBSBrand?.getMatchRounds) {
-          return window.JBSBrand.getMatchRounds(master?.id || $('series').value);
+          return window.JBSBrand.getMatchRounds(master?.id || $('series').value)
+            .map(round => ({ ...round, name: splitStageRound(round.name).fullName }));
         }
         // When common is unavailable, never guess a bracket-specific translation.
         return ['決勝', '準決勝', '準々決勝'].map(name => ({ name, nameEn: LEGACY_STAGE_ENGLISH[name] }));
@@ -565,9 +596,12 @@
         getStageRounds().forEach(round => select.add(new Option(round.name, round.name)));
         select.value = '';
       }
-      function stageEnglishFor(stage) {
-        const key = String(stage || '').trim().normalize('NFKC');
-        return getStageRounds().find(round => round.name.normalize('NFKC') === key)?.nameEn;
+      function stageEnglishFor(stage, prefix = $('stagePrefix').value) {
+        const round = splitStageRound(stage);
+        const fullName = !round.prefix && isLeaguePrefix(prefix) && /^[1-8１-８]回戦$/.test(round.name)
+          ? splitStageRound('リーグステージ' + round.name).fullName : round.fullName;
+        const key = fullName.normalize('NFKC');
+        return getStageRounds().find(option => option.name.normalize('NFKC') === key)?.nameEn;
       }
       function restoreAutoSupplement(master) {
         lastAutoSupplement = '';
@@ -607,6 +641,9 @@
           return;
         }
         lastTournamentKey = key;
+        if (master && master.id !== 'japan-championship' && isLeaguePrefix($('stagePrefix').value)) {
+          $('stagePrefix').value = '';
+        }
         if (master) {
           $('series').value = master.name;
           if (master.color) $('mainColor').value = master.color;
@@ -819,8 +856,12 @@
         const splitOpen = /オープン$/.test(rawSeries);
         const series = splitOpen ? rawSeries.replace(/オープン$/, '') : rawSeries;
         const subtitle = splitOpen ? 'オープン' : '';
-        const stage = $('stage').value.trim();
-        const stagePrefix = $('stagePrefix').value.trim();
+        const displayRound = splitStageRound($('stage').value);
+        const stage = displayRound.name;
+        const enteredPrefix = $('stagePrefix').value.trim();
+        const stagePrefix = displayRound.prefix
+          ? [isLeaguePrefix(enteredPrefix) ? '' : enteredPrefix, displayRound.prefix].filter(Boolean).join(' ')
+          : isLeaguePrefix(enteredPrefix) ? 'リーグステージ' : enteredPrefix;
         const editionText = $('edition').value;
         // Align the edition with the portrait top; reserve separate bands for each line.
         const titleYBase = 142;
@@ -1404,14 +1445,16 @@
         document.querySelector('aside')?.addEventListener('input', scheduleWorkspaceSave);
         document.querySelector('aside')?.addEventListener('change', scheduleWorkspaceSave);
 
-        ['sponsor','edition','stagePrefix','bgMode','bgX','bgY','bgScale','bgShade','leftName','leftRoman','rightName','rightRoman']
+        ['sponsor','edition','bgMode','bgX','bgY','bgScale','bgShade','leftName','leftRoman','rightName','rightRoman']
           .forEach(id => $(id).addEventListener('input', render));
         $('supplement').addEventListener('input', () => {
           if ($('supplement').value.trim() !== lastAutoSupplement) lastAutoSupplement = '';
           render();
         });
         $('stage').addEventListener('input', () => { syncSupplementFromSelections(); render(); });
-        $('stage').addEventListener('change', () => { syncSupplementFromSelections(); render(); });
+        $('stage').addEventListener('change', () => { normalizeStageFields(); syncSupplementFromSelections(); render(); });
+        $('stagePrefix').addEventListener('input', () => { syncSupplementFromSelections(); render(); });
+        $('stagePrefix').addEventListener('change', () => { normalizeStageFields(); syncSupplementFromSelections(); render(); });
         $('series').addEventListener('input', applySeriesMaster);
         $('series').addEventListener('change', applySeriesMaster);
         $('mainColor').addEventListener('input', () => { syncSubColor(); render(); });
@@ -1434,7 +1477,7 @@
           applyTournamentMaster(master, { force: true });
         });
         JBSUI.bindPresetSelect($('stagePreset'), value => {
-          $('stage').value = value;
+          applyStagePreset(value);
           syncSupplementFromSelections();
           render();
         });
@@ -1546,8 +1589,8 @@
         const master = findTournament(title);
         $('edition').value = text(fields.edition);
         $('series').value = title;
-        $('stage').value = text(fields.stage);
         $('stagePrefix').value = '';
+        applyStagePreset(text(fields.stage));
         $('sponsor').value = '';
         $('supplement').value = '';
         lastAutoSupplement = '';
