@@ -547,7 +547,7 @@
         return luminance(r, g, b) > 0.26 ? '#000000' : '#FFFFFF';
       }
       function contrastText(hex) {
-        return window.JBSBrand?.getTextColor(hex) || fallbackContrastText(hex);
+        return window.JBSBrand?.getTextColor?.(hex) || fallbackContrastText(hex);
       }
       function mix(hex, amount = 0.2) {
         const {r,g,b} = hexToRgb(hex);
