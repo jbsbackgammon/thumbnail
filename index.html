@@ -175,7 +175,7 @@
         document.documentElement.removeAttribute('data-jbsui-keyboard-focus');
       });
 
-      const APP_BUILD = '156';
+      const APP_BUILD = '157';
       const pageQuery = new URLSearchParams(location.search);
       const work = ['1', '2', '3'].includes(pageQuery.get('work')) ? pageQuery.get('work') : '1';
       const WORKSPACE_DB_KEY = `workspace-${work}`;
@@ -957,9 +957,11 @@
             if (isFinal) drawFinalMarks(stageY, fill, stroke);
             return;
           }
-          drawImpactTextFit(stagePrefix, 960, 552, titleWidth, 56, 2, fill, stroke, textShadow, 10, 2, 'center', FONT_JP, 900, strokeWidth / 2);
-          drawImpactTextFit(stage, 960, 646, titleWidth, isFinal ? 112 : 104, 2, fill, stroke, textShadow, 18, 5, 'center', FONT_JP, 900, strokeWidth);
-          if (isFinal) drawFinalMarks(646, fill, stroke);
+          const mainStageY = 574;
+          const stageSupplementY = 666;
+          drawImpactTextFit(stage, 960, mainStageY, titleWidth, isFinal ? 112 : 104, 2, fill, stroke, textShadow, 18, 5, 'center', FONT_JP, 900, strokeWidth);
+          if (isFinal) drawFinalMarks(mainStageY, fill, stroke);
+          drawImpactTextFit(stagePrefix, 960, stageSupplementY, titleWidth, 56, 2, fill, stroke, textShadow, 10, 2, 'center', FONT_JP, 900, strokeWidth / 2);
         }
         const titleOutline = titleColor === '#000000' ? '#ffffff' : accent;
         const shadow = 'rgba(0,0,0,0.35)';
